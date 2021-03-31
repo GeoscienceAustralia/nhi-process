@@ -1,0 +1,17 @@
+# Connect to FTP site, fetch named files and quit
+
+host ftp2.bom.gov.au
+connect
+user anonymous
+password hazards@ga.gov.au
+login
+
+cd /anon/gen/fwo
+ascii
+mget IDY03*.axf
+
+binary
+mget IDY03*.sh*
+mget IDY03*.dbf
+
+quit
