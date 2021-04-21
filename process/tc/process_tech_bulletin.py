@@ -100,7 +100,7 @@ def expandFileSpec(config, spec, category):
                            fallback=config.get('Defaults', 'OriginDir'))
     spec = pjoin(origindir, spec)
     files = glob.glob(spec)
-    LOGGER.info(f"{len(files)} {category} to be processed")
+    LOGGER.info(f"{len(files)} {spec} files to be processed")
     for file in files:
         if os.stat(file).st_size > 0:
             if file not in g_files[category]:
@@ -140,7 +140,7 @@ def processFiles(config):
         directory, fname, md5sum, moddate = flGetStat(f)
         cutOffDelta = config.getint(category, "CutOffDelta", fallback=6)
         cutOffDateTime = dt.utcnow() - timedelta(hours=cutOffDelta)
-        LOGGER.info(f"Cutoff time is: {cutOffDateTime}")
+        LOGGER.debug(f"Cutoff time is: {cutOffDateTime}")
         if dt.strptime(moddate, "%c") < cutOffDateTime:
             LOGGER.info(f"{f} is too old (> {cutOffDelta} hours old). Skipping")
             continue
@@ -151,7 +151,6 @@ def processFiles(config):
                 LOGGER.debug(f"Successfully processed {f}")
                 pWriteProcessedFile(f)
                 if deleteWhenProcessed:
-                    LOGGER.debug(f'Removing processed file (in processFiles): {f}')
                     os.unlink(f)
                 else:
                     pArchiveFile(f)
@@ -252,7 +251,7 @@ def processFile(filename, outputDir):
             if issue_time_match:
                 issue_time_str = "{4}-{3}-{2} {0} {1}".format(*issue_time_match.group(1,2,3,4,5))
                 tc_info['issue_time'] = dt.strptime(issue_time_str, "%Y-%m-%d %H%M %Z")
-                LOGGER.debug(f"Issue time: {tc_info['issue_time']: %Y-%m-%d %H:%M}")
+                LOGGER.info(f"Issue time: {tc_info['issue_time']: %Y-%m-%d %H:%M}")
             if valid_time_match:
                 valid_time_str = "{0} {1}".format(*valid_time_match.group(1,2))
                 tc_info['valid_time'] = dt.strptime(valid_time_str, "%H%M %Z")
@@ -260,11 +259,12 @@ def processFile(filename, outputDir):
                 LOGGER.info("Valid date: {0}".format(dt.strftime(tc_info['valid_date'], "%Y-%m-%d %H:%M %Z")))
             if name_match:
                 tc_info['tc_name'] = name_match.group(1)
-                LOGGER.info(f"TC name: {tc_info['tc_name']}")
+                LOGGER.debug(f"TC name: {tc_info['tc_name']}")
             if identifier_match:
                 tc_info['tc_identifier'] = identifier_match.group(1)
-                LOGGER.info(f"TC idnetifier: {tc_info['tc_identifier']}")
+                LOGGER.debug(f"TC identifier: {tc_info['tc_identifier']}")
             if lat_match:
+                # Assume we're in the southern hemisphere here:
                 initLat = -1*float(lat_match.group(1))
             if lon_match:
                 initLon = float(lon_match.group(1))
