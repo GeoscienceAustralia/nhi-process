@@ -22,8 +22,7 @@ def start():
     p = argparse.ArgumentParser()
 
     p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-v', '--verbose',
-                   help="Verbose output", 
+    p.add_argument('-v', '--verbose', help="Verbose output", 
                    action='store_true')
     args = p.parse_args()
 
