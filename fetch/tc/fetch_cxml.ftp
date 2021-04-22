@@ -1,0 +1,23 @@
+# Connect to FTP site, fetch named files and quit
+
+host ftp2.bom.gov.au
+connect
+user anonymous
+password hazards@ga.gov.au
+login
+
+cd /anon/gen/fwo
+
+# CXML data:
+get IDQ65255.xml
+get IDQ65456.xml
+get IDQ65257.xml
+
+get IDD65441.xml
+get IDD65442.xml
+
+get IDW60350.xml
+get IDW60351.xml
+get IDW60351.xml
+
+quit

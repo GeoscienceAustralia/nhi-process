@@ -1,0 +1,33 @@
+# Connect to FTP site, fetch named files and quit
+
+host ftp2.bom.gov.au
+connect
+user anonymous
+password hazards@ga.gov.au
+login
+
+cd /anon/gen/fwo
+
+binary
+
+# NT:
+get IDD65401.zip
+get IDD65402.zip
+get IDD65408.zip
+get IDQ65251.zip
+get IDW60283.zip
+
+# QLD:
+get IDQ65248.zip
+get IDQ65249.zip
+get IDQ65250.zip
+get IDD65409.zip
+
+# WA:
+get IDW60266.zip
+get IDW60267.zip
+get IDW60268.zip
+get IDD65408.zip
+
+
+quit
