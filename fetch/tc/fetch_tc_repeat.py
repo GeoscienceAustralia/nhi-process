@@ -30,7 +30,6 @@ def start():
     global configFile
 
     configFile = args.config_file
-    verbose = args.verbose
     config = ConfigParser(allow_no_value=True,
                           interpolation=ExtendedInterpolation())
     config.optionxform = str
@@ -47,8 +46,10 @@ def start():
             logFile = pjoin(os.getcwd(), 'fetch.log')
     if args.verbose:
         verbose = True
+    else:
+        verbose = False
 
-    mainLoop(config)
+    mainLoop(config, verbose)
 
 def cnfRefreshCachedIniFile(configFile):
     global config
@@ -58,12 +59,12 @@ def cnfRefreshCachedIniFile(configFile):
     config.optionxform = str
     config.read(configFile)
 
-def mainLoop(config):
+def mainLoop(config, verbose=False):
     global LOGGER
     logFile = config.get('Logging', 'LogFile')
     logLevel = config.get('Logging', 'LogLevel', fallback='INFO')
-    verbose = config.get('Logging', 'Verbose', fallback=True)
-    datestamp = config.get('Logging', 'Datestamp', fallback=False)
+    verbose = config.getboolean('Logging', 'Verbose', fallback=verbose)
+    datestamp = config.getboolean('Logging', 'Datestamp', fallback=False)
     interval = config.getint('Repeat', 'Interval', fallback=0)
     LOGGER = flStartLog(logFile, logLevel, verbose, datestamp)
 

@@ -62,8 +62,8 @@ def mainLoop(config):
     global LOGGER
     logFile = config.get('Logging', 'LogFile')
     logLevel = config.get('Logging', 'LogLevel', fallback='INFO')
-    verbose = config.get('Logging', 'Verbose', fallback=True)
-    datestamp = config.get('Logging', 'Datestamp', fallback=False)
+    verbose = config.getboolean('Logging', 'Verbose', fallback=True)
+    datestamp = config.getboolean('Logging', 'Datestamp', fallback=False)
     interval = config.getint('Repeat', 'Interval', fallback=0)
     LOGGER = flStartLog(logFile, logLevel, verbose, datestamp)
 
