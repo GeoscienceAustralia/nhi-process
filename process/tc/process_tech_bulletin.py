@@ -213,12 +213,12 @@ def processFile(filename, outputDir):
     lon_regex = re.compile(r'^Longitude\:\s*(\d+\.\d)(\w)')
     loc_regex = re.compile(r'^Location.*\:\s\w*\s(\d{1,})\s(\w+)\s+(?:\(|\[)(\d+)\s(\w+)(?:\)|\])')
     init_dir_regex = re.compile(r'^Movement Towards\:\s*(.*)(?:\(|\[)(\d+)(.+)(?:\)|\])')
-    init_speed_regex = re.compile(r'^Speed of movement\:\s+(\d+)\s+(\w*)\s+(?:\(|\[)(\d*)\s(.*)(?:\)|\])')
+    init_speed_regex = re.compile(r'^Speed of Movement\:\s+(\d+)\s+(\w*)\s+(?:\(|\[)(\d*)\s(.*)(?:\)|\])')
     init_pcentre_regex = re.compile(r'^Central Pressure\:\s*(\d*)\s*(\w*)')
     init_rmax_regex = re.compile(r'^Radius of Maximum Winds\:\s*(\d+)\s*(\w+)\s+(?:\(|\[)(\d+)\s(\w+)(?:\)|\])')
     missing_rmax_regex = re.compile(r'^Radius of Maximum Winds\:\s*$')
     vmax_mean_regex = re.compile(r'^Maximum 10-Minute.*\:\s+(\d+)\s(\w+)')
-    vmax_gust_regex = re.compile(r'^Maximum 3-second.*\:\s+(\d+)\s(\w+)')
+    vmax_gust_regex = re.compile(r'^Maximum 3-Second.*\:\s+(\d+)\s(\w+)')
     poci_regex = re.compile(r'^Pressure.*outermost.*\:\s+(\d+)\s(\w+)')
     roci_regex = re.compile(r'^Radius.*outermost.*\:\s+(\d+)\s(\w+)')
     fcast_regex = re.compile(r'^\+(\d+)')
@@ -237,7 +237,11 @@ def processFile(filename, outputDir):
             lat_match = lat_regex.match(line)
             lon_match = lon_regex.match(line)
             loc_match = loc_regex.match(line)
+            init_dir_match = init_dir_regex.match(line)
+            init_speed_match = init_speed_regex.match(line)
             init_pcentre_match = init_pcentre_regex.match(line)
+            vmax_mean_match = vmax_mean_regex.match(line)
+            vmax_gust_match = vmax_gust_regex.match(line)
             init_rmax_match = init_rmax_regex.match(line)
             fcast_match = fcast_regex.match(line)
             poci_match = poci_regex.match(line)
@@ -266,18 +270,40 @@ def processFile(filename, outputDir):
             if lat_match:
                 # Assume we're in the southern hemisphere here:
                 initLat = -1*float(lat_match.group(1))
+                tc_info['init_lat'] = initLat
             if lon_match:
                 initLon = float(lon_match.group(1))
+                tc_info['init_lon'] = initLon
             if loc_match:
-                rmax = loc_match.group(3)
+                rmax = f"{loc_match.group(3)} {loc_match.group(4)}"
                 LOGGER.debug(f"RMAX value: {rmax} from accuracy")
+                tc_info['init_rmax'] = rmax
+                tc_info['pos_acc'] = rmax
             if init_pcentre_match:
                 initPrs = float(init_pcentre_match.group(1))
+                tc_info['init_pcentre'] = initPrs
             if init_rmax_match:
-                rmax = init_rmax_match.group(3)
+                rmax = f"{init_rmax_match.group(3)} {init_rmax_match.group(4)}"
+                tc_info['init_rmax'] = rmax
+
             if poci_match:
                 poci = poci_match.group(1)
-    
+                tc_info['init_poci'] = poci
+
+            if init_dir_match:
+                tc_info['init_dir'] = (f"{init_dir_match.group(1)} "
+                                       f"({init_dir_match.group(2)} {init_dir_match.group(3)})")
+
+            if init_speed_match:
+                tc_info['init_speed'] = (f"{init_speed_match.group(1)} {init_speed_match.group(2)} "
+                                         f"({init_speed_match.group(3)} {init_speed_match.group(4)})")
+
+            if vmax_mean_match:
+                tc_info['vmax_mean'] = f"{vmax_mean_match.group(1)} {vmax_mean_match.group(2)}"
+
+            if vmax_gust_match:
+                tc_info['vmax_gust'] = f"{vmax_gust_match.group(1)} {vmax_gust_match.group(2)}"
+
             if fcast_match:
                 retval = parseForecast(line)
                 if retval:
@@ -297,6 +323,41 @@ def processFile(filename, outputDir):
     filename = f"tctrack.{tc_info['tc_identifier']}.{tc_info['valid_date']:%Y%m%d%H%M}.csv"
     LOGGER.info(f"Saving track data to {filename}")
     tc_fcast.to_csv(pjoin(outputDir, filename), index=False)
+    rc = writeInfoFile(tc_info, tc_fcast, outputDir)
+    return True
+
+def writeInfoFile(tcinfo, tcfcast, outputDir):
+    """
+    Write a file that contains information on the TC event to enable creation of
+    configuration files for downstream processing
+
+    :param dict tcinfo: `dict` of attributes of the forecast
+    :param tcfcast: `pandas.DataFrame` containing the actual forecast data
+    :param str outputDir: Output directory where the info file will be stored
+
+    :returns: `True` if the file is written successfully, `False` otherwise.
+    """
+
+    LOGGER.info("Writing TC info file")
+    fname = pjoin(outputDir, f"tcinfo.{tcinfo['tc_identifier']}.txt")
+    with open(fname, 'w') as fh:
+        fh.write(f"TC name: {tcinfo['tc_name']}\n")
+        fh.write(f"TC ID: {tcinfo['tc_identifier']}\n")
+        fh.write(f"Issuing centre: {tcinfo['issue_ctr']}\n")
+        fh.write(f"Issue time: {tcinfo['issue_time']}\n")
+        fh.write(f"Valid time: {tcinfo['valid_date']}\n")
+        fh.write(f"Longitude: {tcinfo['init_lon']}\n")
+        fh.write(f"Latitude: {tcinfo['init_lat']}\n")
+        fh.write(f"Location accuracy: {tcinfo['pos_acc']}\n")
+        fh.write(f"Current speed: {tcinfo['init_speed']}\n")
+        fh.write(f"Current direction: {tcinfo['init_dir']}\n")
+        fh.write(f"Maximum mean wind speed: {tcinfo['vmax_mean']}\n")
+        fh.write(f"Maximum gust wind speed: {tcinfo['vmax_gust']}\n")
+        fh.write(f"Central pressure: {tcinfo['init_pcentre']}\n")
+        fh.write(f"Pressure outermost closed isobar: {tcinfo['init_poci']}\n")
+        fh.write(f"Radius to maximum winds: {tcinfo['init_rmax']}\n")
+
+    LOGGER.info(f"Successfully wrote TC info file to {fname}")
     return True
 
 start()

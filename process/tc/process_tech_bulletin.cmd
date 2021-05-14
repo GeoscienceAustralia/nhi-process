@@ -1,6 +1,7 @@
 :: Process a new TC Technical Bulletin and initiate TCIM simulation
 @echo off
 title Process TC Tech Bulletin
+CALL conda.bat activate
 set PYTHONPATH=C:\Workspace\lib\python
 
 cd \WorkSpace\bin\process\tc
