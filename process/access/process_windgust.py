@@ -57,6 +57,14 @@ def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     return fcast_time
 
 def checkFileList(filelist):
+    """
+    Check that all required files exist
+
+    :param list filelist: List of files required to proceed with processing
+
+    :returns: `True` if all files exist, `False` otherwise.
+    """
+    
     if all([isfile(f) for f in filelist]):
         LOGGER.debug("all files exist")
         return True

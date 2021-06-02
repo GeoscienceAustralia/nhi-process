@@ -6,26 +6,22 @@ set PYTHONPATH=C:\Workspace\lib\python
 
 cd \WorkSpace\bin\process\tc
 
-echo Processing technical bulletin...
+echo Processing technical bulletin
 python process_tech_bulletin.py -c process_tech_bulletin.ini
 
-REM echo Processing template configuration file
-REM cd \WorkSpace\bin\process\config
-REM perl process_config_templates.pl -c process_config_templates.ini
+echo Processing template configuration file
+cd \WorkSpace\bin\process\config
+python process_config_template.py -c process_config_templates.ini
 
 REM echo Running TCIM...
 REM c:
-REM This will require modifying the path
-REM cd \WorkSpace\tcrm-impact
-REM \python27.old\python -Wignore tcrm-impact.py -c tcim-impact.ini
+REM CALL conda.bat activate tcrm
+REM cd \WorkSpace\tcrm
+REM set PYTHONPATH=C:\WorkSpace\tcrm;C:\WorkSpace\tcrm\Utilities
+REM python tcevent.py -c tcim-impact.ini
 
 REM cd \WorkSpace\bin\process\windfield
 REM \python27\ArcGIS10.5\python TCWindfieldConversion.py -c TCWindfieldConversion.ini
-
-::\python27.old\ArcGIS10.2\python TCImpactEstimation.py -c TCImpactEstimation.ini
-
-::cd \WorkSpace\bin\process\tc
-::\python -Wignore process_convert_track.py -c process_convert_track.ini
 
 
 :: Fetch AXF files for posterity:

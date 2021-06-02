@@ -1,4 +1,5 @@
 @echo off
+title Fetch AXF observations
 REM Fetch observations (AXF files) from the BoM using FTP client and script
 CALL conda.bat activate base
 REM cd \incoming\que

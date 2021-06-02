@@ -51,9 +51,8 @@ def start():
         except OSError:
             logFile = pjoin(os.getcwd(), 'fetch.log')
 
-    logLevel = config.get('Logging', 'LogLevel', fallback='INFO')
     verbose = config.getboolean('Logging', 'Verbose', fallback=False)
-    datestamp = config.getboolean('Logging', 'Datestamp', fallback=False)
+
     if args.verbose:
         verbose = True
 
@@ -312,7 +311,7 @@ def processFile(filename, outputDir):
                     tc_fcast = tc_fcast.append({'tau':tau, "datetime":fcastdt,
                                      "lat":lat, "lon":lon, "pressure":prs,
                                      "rmax": None, "poci":None}, ignore_index=True)
-    
+
     initData = [{'tau': 0, 'datetime': tc_info['valid_date'],
                  "lat": initLat, "lon": initLon, "pressure": initPrs,
                  "rmax": rmax, "poci": poci}]

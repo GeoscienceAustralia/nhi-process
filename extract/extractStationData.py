@@ -17,13 +17,15 @@ LOGGER = logging.getLogger()
 PATTERN = re.compile(r".*Data.*\.txt")
 
 def start():
-    p = argparse.ArgumentParser()
-    p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-v', '--verbose', help="Verbose output", 
-                   action='store_true')
-    args = p.parse_args()
-
-    global configFile
+    """
+    Parse command line arguments, initiate processing module (for tracking
+    processed files) and start the main loop.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config_file', help="Configuration file")
+    parser.add_argument('-v', '--verbose', help="Verbose output",
+                        action='store_true')
+    args = parser.parse_args()
 
     configFile = args.config_file
     verbose = args.verbose
@@ -36,24 +38,37 @@ def start():
     main(config, verbose)
 
 def main(config, verbose=False):
-    logFile = config.get('Logging', 'LogFile')
-    logLevel = config.get('Logging', 'LogLevel', fallback='INFO')
+    """
+    Start logger and call the loop to process source files.
+
+    :param config: `ConfigParser` object with configuration loaded
+    :param boolean verbose: If `True`, print logging messages to STDOUT
+
+    """
+
+    logfile = config.get('Logging', 'LogFile')
+    loglevel = config.get('Logging', 'LogLevel', fallback='INFO')
     verbose = config.getboolean('Logging', 'Verbose', fallback=verbose)
     datestamp = config.getboolean('Logging', 'Datestamp', fallback=False)
-    LOGGER = flStartLog(logFile, logLevel, verbose, datestamp)
+    LOGGER = flStartLog(logfile, loglevel, verbose, datestamp)
 
     ListAllFiles(config)
     processFiles(config)
 
 def ListAllFiles(config):
+    """
+    For each item in the 'Categories' section of the configuration file, load
+    the specification (glob) for the files, then pass to `expandFileSpecs`
+
+    :param config: `ConfigParser` object
+    """
     global g_files
-    global LOGGER
     g_files = {}
     categories = config.items('Categories')
     for idx, category in categories:
         specs = []
         items = config.items(category)
-        for k,v in items:
+        for k, v in items:
             if v == '':
                 specs.append(k)
         expandFileSpecs(config, specs, category)
@@ -66,7 +81,7 @@ def expandFileSpec(config, spec, category):
     that includes an item called 'OriginDir'.
     The given `spec` is joined to the `category`'s 'OriginDir' and all matching
     files are stored in a list in :dict:`g_files` under the `category` key.
-    
+
     :param config: `ConfigParser` object
     :param str spec: A file specification. e.g. '*.*' or 'IDW27*.txt'
     :param str category: A category that has a section in the source configuration file
@@ -152,15 +167,15 @@ def extractDailyMax(filename, variable='windgust'):
     :returns: `pandas.DataFrame`
 
     """
-    names = ['id', 'stnNum', 
+    names = ['id', 'stnNum',
              'YYYY', 'MM', 'DD', 'HH', 'MI',
              'YYYYl', 'MMl', 'DDl', 'HHl', 'MIl',
              'rainfall', 'rainq', 'rain_duration',
              'temp', 'tempq', 'dewpoint', 'dewpointq', 'rh', 'rhq',
              'windspd', 'windspdq', 'winddir', 'winddirq',
              'windsd', 'windsdq', 'windgust', 'windgustq',
-             'mslp', 'mslpq', 'stnp', 'stnpq','end']
-    dtypes = {'id': str, 'stnNum': int, 
+             'mslp', 'mslpq', 'stnp', 'stnpq', 'end']
+    dtypes = {'id': str, 'stnNum': int,
               'YYYY': int, "MM": int, "DD": int, "HH": int, "MI": int,
               'YYYYl': int, "MMl": int, "DDl": int, "HHl": int, "MIl": int,
               'rainfall': float, 'rainq': str, 'rain_duration': float,
@@ -176,7 +191,7 @@ def extractDailyMax(filename, variable='windgust'):
 
     df = pd.read_csv(filename, sep=',', index_col=False, dtype=dtypes,
                      names=names, header=0,
-                     parse_dates={'datetime':[2,3,4,5,6]},
+                     parse_dates={'datetime':[2, 3, 4, 5, 6]},
                      date_parser=dt, na_values=['####'],
                      skipinitialspace=True)
     df['date'] = df.datetime.dt.date
