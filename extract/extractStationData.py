@@ -116,6 +116,7 @@ def processFiles(config):
     unknownDir = config.get('Defaults', 'UnknownDir')
     originDir = config.get('Defaults', 'OriginDir')
     deleteWhenProcessed = config.getboolean('Files', 'DeleteWhenProcessed', fallback=False)
+    archiveWhenProcessed = config.getboolean('Files', 'ArchiveWhenProcessed', fallback=True)
     outputDir = config.get('Output', 'Path', fallback=unknownDir)
     LOGGER.debug(f"Origin directory: {originDir}")
     LOGGER.debug(f"DeleteWhenProcessed: {deleteWhenProcessed}")
@@ -135,7 +136,7 @@ def processFiles(config):
                 pWriteProcessedFile(f)
                 if deleteWhenProcessed:
                     os.unlink(f)
-                else:
+                elif archiveWhenProcessed:
                     pArchiveFile(f)
 
 def processFile(filename, outputDir):
@@ -154,6 +155,7 @@ def processFile(filename, outputDir):
             m = PATTERN.match(f)
             stnNum = int(m.group(1))
             stnState = stnlist.loc[stnlist.stnNum==stnNum, 'stnState'].values[0]
+            LOGGER.debug(f"Station number: {stnNum} ({stnState})")
             with zz.open(f) as fh:
                 dfmax = extractDailyMax(fh, stnState)
                 LOGGER.info(f"Writing data to {pjoin(outputDir, f)}")
@@ -165,6 +167,7 @@ def processFile(filename, outputDir):
     return rc
 
 def getStationList(stnfile):
+    LOGGER.debug(f"Retrieving list of stations from {stnfile}")
     colnames = ["id", 'stnNum', 'rainfalldist', 'stnName', 'stnOpen', 'stnClose',
             'stnLat', 'stnLon', 'stnLoc', 'stnState', 'stnElev', 'stnBarmoeterElev',
             'stnWMOIndex', 'stnDataStartYear', 'stnDataEndYear',
@@ -205,7 +208,7 @@ def extractDailyMax(filename, stnState, variable='windgust'):
               'windgust': float, 'windgustq': str,
               'mslp':float, 'mslpq':str,
               'stnp': float, 'stnpq': str, 'end': str}
-
+    LOGGER.debug(f"Reading station data from {filename}")
     df = pd.read_csv(filename, sep=',', index_col=False, dtype=dtypes,
                      names=names, header=0,
                      parse_dates={'datetime':[7, 8, 9, 10, 11]},
@@ -213,8 +216,10 @@ def extractDailyMax(filename, stnState, variable='windgust'):
                      skipinitialspace=True)
 
     # Hacky way to convert from local standard time to UTC:
+    LOGGER.debug("Converting from local to UTC time")
     df['datetime'] = df.datetime - timedelta(hours=TZ[stnState])
     df['date'] = df.datetime.dt.date
+    LOGGER.debug("Determining daily maximum wind speed record")
     dfmax = df.loc[df.groupby(['date'])[variable].idxmax().dropna()]
     return dfmax
 
