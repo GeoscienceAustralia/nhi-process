@@ -4,8 +4,8 @@ import glob
 import zipfile
 import argparse
 import logging
-from os.path import join as pjoin, basename, dirname, realpath, isdir, splitext
-from datetime import datetime
+from os.path import join as pjoin
+from datetime import datetime, timedelta
 from configparser import ConfigParser, ExtendedInterpolation
 import pandas as pd
 
@@ -14,7 +14,11 @@ from files import flStartLog, flGetStat
 
 LOGGER = logging.getLogger()
 
-PATTERN = re.compile(r".*Data.*\.txt")
+PATTERN = re.compile(r".*Data_(\d{6}).*\.txt")
+STNFILE = re.compile(r".*StnDet.*\.txt")
+TZ = {"QLD":10, "NSW":10, "VIC":10,
+      "TAS":10, "SA":9.5, "NT":9.5,
+      "WA":8, "ANT":0}
 
 def start():
     """
@@ -143,10 +147,15 @@ def processFile(filename, outputDir):
         zz = zipfile.ZipFile(filename)
         filelist = zz.namelist()
         gen = (f for f in filelist if PATTERN.match(f))
+        stnfile = [f for f in filelist if STNFILE.match(f)][0]
+        stnlist = getStationList(zz.open(stnfile))
         for f in gen:
             LOGGER.info(f"Loading data from {f}")
+            m = PATTERN.match(f)
+            stnNum = int(m.group(1))
+            stnState = stnlist.loc[stnlist.stnNum==stnNum, 'stnState'].values[0]
             with zz.open(f) as fh:
-                dfmax = extractDailyMax(fh)
+                dfmax = extractDailyMax(fh, stnState)
                 LOGGER.info(f"Writing data to {pjoin(outputDir, f)}")
                 dfmax.to_csv(pjoin(outputDir, f), index=False)
         rc = True
@@ -155,8 +164,16 @@ def processFile(filename, outputDir):
         rc = False
     return rc
 
+def getStationList(stnfile):
+    colnames = ["id", 'stnNum', 'rainfalldist', 'stnName', 'stnOpen', 'stnClose',
+            'stnLat', 'stnLon', 'stnLoc', 'stnState', 'stnElev', 'stnBarmoeterElev',
+            'stnWMOIndex', 'stnDataStartYear', 'stnDataEndYear',
+            'pctComplete', 'pctY', 'pctN', 'pctW', 'pctS', 'pctI']
+    df = pd.read_csv(stnfile, sep=',', index_col=False, names=colnames,
+                     keep_default_na=False, converters={'stnState': str.strip})
+    return df
 
-def extractDailyMax(filename, variable='windgust'):
+def extractDailyMax(filename, stnState, variable='windgust'):
     """
     Extract daily maximum value of `variable` from 1-minute observation records
     contained in `filename`
@@ -191,9 +208,12 @@ def extractDailyMax(filename, variable='windgust'):
 
     df = pd.read_csv(filename, sep=',', index_col=False, dtype=dtypes,
                      names=names, header=0,
-                     parse_dates={'datetime':[2, 3, 4, 5, 6]},
+                     parse_dates={'datetime':[7, 8, 9, 10, 11]},
                      date_parser=dt, na_values=['####'],
                      skipinitialspace=True)
+
+    # Hacky way to convert from local standard time to UTC:
+    df['datetime'] = df.datetime - timedelta(hours=TZ[stnState])
     df['date'] = df.datetime.dt.date
     dfmax = df.loc[df.groupby(['date'])[variable].idxmax().dropna()]
     return dfmax
