@@ -212,10 +212,11 @@ def extractDailyMax(filename, stnState, variable='windgust'):
     df = pd.read_csv(filename, sep=',', index_col=False, dtype=dtypes,
                      names=names, header=0,
                      parse_dates={'datetime':[7, 8, 9, 10, 11]},
-                     date_parser=dt, na_values=['####'],
+                     na_values=['####'],
                      skipinitialspace=True)
 
     # Hacky way to convert from local standard time to UTC:
+    df['datetime'] = pd.to_datetime(df.datetime, format="%Y %m %d %H %M")
     LOGGER.debug("Converting from local to UTC time")
     df['datetime'] = df.datetime - timedelta(hours=TZ[stnState])
     df['date'] = df.datetime.dt.date

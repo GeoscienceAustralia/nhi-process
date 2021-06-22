@@ -47,7 +47,12 @@ def precip(da, fh, outputFile, metadata):
     plt.savefig(outputFile, bbox_inches='tight', metadata=metadata)
     plt.close()
 
+
 def windgust(da, fh, outputFile, metadata):
+    """
+    Plot surface wind gust speed in knots
+    :param da: `xarray.DataArray`
+    """
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.figure.set_size_inches(15, 12)
     windlevels = np.arange(5, 76, 5)

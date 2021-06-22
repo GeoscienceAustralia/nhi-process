@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from plotting import windgust
 
 from files import flStartLog, flProgramVersion
-from process import pAlreadyProcessed, pWriteProcessedFile
 
 import xarray as xr
 import pandas as pd
@@ -134,7 +133,7 @@ def main(config):
         lon = tds.lon
         lat = tds.lat
         newda = xr.DataArray(tda.max(axis=0), coords=[lat, lon],
-                            dims=['lat', 'lon'], attrs=tda.attrs)
+                             dims=['lat', 'lon'], attrs=tda.attrs)
         # Add provenance message to the netcdf file
 
         if 'history' in tds.attrs:
@@ -147,49 +146,6 @@ def main(config):
         windgust(tda, rng[1]-1, 
                  pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{fp}.png"),
                  metadata={"history":provmsg})
-
-
-def expandFileSpec(config, spec, category):
-    """
-    Given a file specification and a category, list all files that match the spec and add them to the :dict:`g_files` dict. 
-    The `category` variable corresponds to a section in the configuration file that includes an item called 'OriginDir'. 
-    The given `spec` is joined to the `category`'s 'OriginDir' and all matching files are stored in a list in 
-    :dict:`g_files` under the `category` key.
-    
-    :param config: `ConfigParser` object 
-    :param str spec: A file specification. e.g. '*.*' or 'IDW27*.txt'
-    :param str category: A category that has a section in the source configuration file
-    """
-    global LOGGER
-    if category not in g_files:
-        g_files[category] = []
-
-    origindir = config.get(category, 'OriginDir',
-                           fallback=config.get('Defaults', 'OriginDir'))
-    spec = pjoin(origindir, spec)
-    files = glob.glob(spec)
-    for file in files:
-        if os.stat(file).st_size > 0:
-            if file not in g_files[category]:
-                g_files[category].append(file)
-
-
-def expandFileSpecs(config, specs, category):
-    for spec in specs:
-        expandFileSpec(config, spec, category)
-
-def ListAllFiles(config):
-    global g_files
-    global LOGGER
-    g_files = {}
-    categories = config.items('Categories')
-    for idx, category in categories:
-        specs = []
-        items = config.items(category)
-        for k,v in items:
-            if v == '':
-                specs.append(k)
-        expandFileSpecs(config, specs, category)
 
 
 start()
