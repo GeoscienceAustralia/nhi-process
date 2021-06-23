@@ -134,10 +134,10 @@ def processFiles(config):
             if processFile(f, outputDir):
                 LOGGER.debug(f"Successfully processed {f}")
                 pWriteProcessedFile(f)
-                if deleteWhenProcessed:
-                    os.unlink(f)
-                elif archiveWhenProcessed:
+                if archiveWhenProcessed:
                     pArchiveFile(f)
+                elif deleteWhenProcessed:
+                    os.unlink(f)
 
 def processFile(filename, outputDir):
     """
