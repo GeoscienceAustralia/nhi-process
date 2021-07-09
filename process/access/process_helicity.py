@@ -1,19 +1,21 @@
+
 import os
 import sys
-import glob
 import logging
 import argparse
 from configparser import ConfigParser, ExtendedInterpolation
 from itertools import filterfalse
 from os.path import join as pjoin, isfile, dirname, basename, splitext, realpath
 from datetime import datetime, timedelta
-from plotting import windgust
-
 from files import flStartLog, flProgramVersion
 
 import xarray as xr
 import pandas as pd
 import numpy as np
+import cfgrib
+
+from plotting import helicity
+
 
 global LOGGER
 DATETIMEFMT = "%Y%m%d%H"
@@ -25,10 +27,10 @@ DOMAINS = {"VT":"IDY25420",
            "DN":"IDY25425"}
 
 g_files = {}
-forecast_periods = {"00-12": (0, 13),
-                    "12-24": (14, 25),
-                    "24-36": (26, 37),
-                    "00-36": (0, 37)}
+forecast_periods = {"00-12": (1, 13),
+                    "12-24": (13, 25),
+                    "24-36": (25, 37),
+                    "00-36": (1, 37)}
 
 def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     """
@@ -65,7 +67,7 @@ def checkFileList(filelist):
 
     :returns: `True` if all files exist, `False` otherwise.
     """
-    
+
     if all([isfile(f) for f in filelist]):
         LOGGER.debug("All required files exist")
         return True
@@ -73,6 +75,7 @@ def checkFileList(filelist):
         for f in list(filterfalse(isfile, filelist)):
             LOGGER.warning(f"Missing: {f}")
         return False
+
 
 def start():
     """
@@ -111,6 +114,10 @@ def start():
         main(config)
 
 
+def processArchiveFile(config):
+    pass
+
+
 def main(config):
     """
     Main processing loop for current (near real-time) processing.
@@ -127,7 +134,7 @@ def main(config):
     provflag = False
     domain = config.get('Forecast', 'Domain')
     delay = config.getint('Forecast', 'Delay', fallback=2)
-    group = config.get('Forecast', 'Group', fallback="group2")
+    group = config.get('Forecast', 'Group', fallback="helicity")
     inputPath = config.get('Files', 'SourceDir')
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
 
@@ -137,80 +144,54 @@ def main(config):
 
     for fp, rng in forecast_periods.items():
         timelist = [f"{t:03d}" for t in range(*rng)]
-        filelist = [pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.nc4") for t in timelist]
+        filelist = [pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.grb2") for t in timelist]
         if not checkFileList(filelist):
             LOGGER.warning("Not all files exist")
             continue
-        tds = xr.open_mfdataset(filelist, combine='by_coords')
-        tda = tds.wndgust10m
-        tda.attrs['accum_type'] = 'time: maximum'
-        lon = tds.lon
-        lat = tds.lat
-        newda = xr.DataArray(tda.max(axis=0), coords=[lat, lon],
-                             dims=['lat', 'lon'], attrs=tda.attrs)
-
-        # Add provenance message to the netcdf file
-        if 'history' in tds.attrs:
-            tds.attrs['history'] = tds.attrs['history'] + provmsg
         else:
-            tds.attrs.update({"history":provmsg})
-        ds = xr.Dataset({"wndgust10m": newda}, attrs=tds.attrs)
-        LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
-        ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{fp}.surface.nc4"))
-        windgust(tda, rng[1]-1, 
-                 pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{fp}.png"),
-                 metadata={"history":provmsg})
+            outds = processFiles(filelist)
+            outds.attrs.update({"history":provmsg})
+            LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
+            outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.helicity.slv.{fcast_time_str}.{fp}.surface.nc4"))
+            helicity(outds.min_updraft_helicity, rng[1]-1, 
+                     pjoin(outputPath, f"{DOMAINS[domain]}.APS3.helicity.slv.{fcast_time_str}.{fp}.png"),
+                     metadata={"history":provmsg})
 
-
-def processArchiveFile(config):
+def processFiles(filelist):
     """
-    Process an archive ACCESS-C file. Requires a modified configuration file,
-    and the data file to be prepared using the historical archive of ACCESS-C
-    data available on the NCI (project wr45)
+    Process a list of files to convert from the native grib format to netcdf,
+    and additionally aggregate to time periods based on the 0-12, 12-24, 24-36
+    and 0-36 hour time periods
 
-    The following command will merge the required analysis and forecast time
-    periods for use in this function:
+    :param list filelist: list of filenames in the input folder
 
-    `cdo mergetime
-        /g/data/wr45/ops_aps3/access-<domain>/1/<YYYYMMDD>/<HHMM>/an/sfc/wndgust10m.nc
-        /g/data/wr45/ops_aps3/access-<domain>/1/<YYYYMMDD>/<HHMM>/fc/sfc/wndgust10m.nc
-        <DOMAINS[domain]>.APS3.group2.wndgust10m.<YYMMDDHH>.surface.nc4`
+    :returns: :class:`xarray.Dataset`
 
-    Here <domain> would be one of 'vt', 'sy', 'ad', 'bn', 'dn' or 'ph' and
-    <DOMAINS[domain]> would be the value of the dict defined above in this file.
     """
-    LOGGER.info(f"Processing an archive ACCESS file")
-    provmsg = (f"{datetime.now():%Y-%m-%d %H:%M:%S}: {basename(sys.argv[0])}"
-               f" -c {basename(configFile)} ({flProgramVersion(dirname(sys.argv[0]))})")
 
-    LOGGER.debug(provmsg)
-    provflag = False
-    domain = config.get('Forecast', 'Domain')
-    group = config.get('Forecast', 'Group', fallback="group2")
-    fcast_time = config.get('Forecast', 'Time') # Must be YYYYMMDDHH
+    dslist = []
+    for filename in filelist:
+        LOGGER.debug(f"Reading data from {filename}")
+        ds = cfgrib.open_datasets(filename)
 
-    inputPath = config.get('Files', 'SourceDir')
-    outputPath = config.get('Files', 'DestDir', fallback=inputPath)
-    filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.wndgust10m.{fcast_time}.surface.nc4")
+        hmaxds = ds[1]
+        hminds = ds[0]
+        nds = xr.Dataset()
+        nds['max_updraft_helicity'] = hmaxds.unknown
+        nds['min_updraft_helicity'] = hminds.unknown
+        nds.attrs = hmaxds.attrs
 
-    tds = xr.open_dataset(filename)
-    if 'history' in tds.attrs:
-        tds.attrs['history'] = tds.attrs['history'] + provmsg
-    else:
-        tds.attrs.update({"history":provmsg})
+        nds.min_updraft_helicity.attrs['long_name'] = 'min_updraft_helicity'
+        nds.min_updraft_helicity.attrs['standard_name'] = 'Minimum updraft helicity'
+        nds.min_updraft_helicity.attrs['units'] = 'm2 s-2'
 
-    for fp, rng in forecast_periods.items():
-        tda = tds.isel(time=slice(*rng)).wndgust10m
-        tda.attrs['accum_type'] = 'time: maximum'
-        lon = tds.lon
-        lat = tds.lat
-        newda = xr.DataArray(tda.max(axis=0), coords=[lat, lon],
-                             dims=['lat', 'lon'], attrs=tda.attrs)
-        ds = xr.Dataset({"wndgust10m": newda}, attrs=tds.attrs)
-        LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
-        ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time}.{fp}.surface.nc4"))
-        windgust(tda, rng[1]-1,
-                 pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time}.{fp}.png"),
-                 metadata={"history":provmsg})
+        nds.max_updraft_helicity.attrs['long_name'] = 'max_updraft_helicity'
+        nds.max_updraft_helicity.attrs['standard_name'] = 'Maximum updraft helicity'
+        nds.max_updraft_helicity.attrs['units'] = 'm2 s-2'
+        dslist.append(nds)
+
+    LOGGER.debug("Concatenating datasets")
+    outds = xr.concat(dslist, 'time')
+    return outds
 
 start()
