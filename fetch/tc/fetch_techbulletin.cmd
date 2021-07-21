@@ -1,6 +1,6 @@
 @echo off
 REM Fetch TC technical Bulletin from the BoM using FTP client and script
-CALL conda.bat activate base
+CALL conda.bat activate process
 set PYTHONPATH=C:\WorkSpace\lib\python
 cd \incoming\que
 

@@ -127,7 +127,7 @@ def main(config):
 
     """
 
-    LOGGER.info("Running main loop for wind gust processing")
+    LOGGER.info("Running main loop for updraft helicity processing")
     provmsg = (f"{datetime.now():%Y-%m-%d %H:%M:%S}: {basename(sys.argv[0])}"
                f" -c {basename(configFile)} ({flProgramVersion(dirname(sys.argv[0]))})")
     LOGGER.debug(provmsg)
@@ -149,13 +149,18 @@ def main(config):
             LOGGER.warning("Not all files exist")
             continue
         else:
-            outds = processFiles(filelist)
-            outds.attrs.update({"history":provmsg})
+            tds = processFiles(filelist)
+            tds.attrs.update({"history":provmsg})
             LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
-            outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.helicity.slv.{fcast_time_str}.{fp}.surface.nc4"))
-            helicity(outds.min_updraft_helicity, rng[1]-1, 
+            helicity(tds.min_updraft_helicity, rng[1]-1,
                      pjoin(outputPath, f"{DOMAINS[domain]}.APS3.helicity.slv.{fcast_time_str}.{fp}.png"),
                      metadata={"history":provmsg})
+            uda = tds.max_updraft_helicity.max(axis=0)
+            dda = tds.min_updraft_helicity.min(axis=0)
+            outds = xr.Dataset({"max_updraft_helicity": uda,
+                                "min_updraft_helicity": dda},
+                                attrs=tds.attrs)
+            outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.helicity.slv.{fcast_time_str}.{fp}.surface.nc4"))
 
 def processFiles(filelist):
     """
@@ -192,6 +197,7 @@ def processFiles(filelist):
 
     LOGGER.debug("Concatenating datasets")
     outds = xr.concat(dslist, 'time')
+
     return outds
 
 start()

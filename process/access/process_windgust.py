@@ -193,7 +193,11 @@ def processArchiveFile(config):
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
     filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.wndgust10m.{fcast_time}.surface.nc4")
 
-    tds = xr.open_dataset(filename)
+    try:
+        tds = xr.open_dataset(filename)
+    except FileNotFoundError:
+        LOGGER.exception(f"Cannot open {filename}")
+        raise
     if 'history' in tds.attrs:
         tds.attrs['history'] = tds.attrs['history'] + provmsg
     else:

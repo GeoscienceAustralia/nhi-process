@@ -1,6 +1,6 @@
 @echo off
 REM Fetch TC GIS format warning data from the BoM using FTP client and script
-CALL conda.bat activate
+CALL conda.bat activate process
 set PYTHONPATH=C:\workspace\lib\python
 cd \incoming\que
 
