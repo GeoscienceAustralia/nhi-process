@@ -81,9 +81,11 @@ def start():
     p = argparse.ArgumentParser()
 
     p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-a', '--archive', help="Archive file processing", action='store_true')
+    p.add_argument('-a', '--archive',
+                   help="Archive file processing",
+                   action='store_true')
     p.add_argument('-v', '--verbose',
-                   help="Verbose output", 
+                   help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -126,7 +128,8 @@ def main(config):
 
     LOGGER.info("Running main loop for radar processing")
     provmsg = (f"{datetime.now():%Y-%m-%d %H:%M:%S}: {basename(sys.argv[0])}"
-               f" -c {basename(configFile)} ({flProgramVersion(dirname(sys.argv[0]))})")
+               f" -c {basename(configFile)} "
+               f"({flProgramVersion(dirname(sys.argv[0]))})")
     LOGGER.debug(provmsg)
     provflag = False
     domain = config.get('Forecast', 'Domain')
@@ -145,16 +148,16 @@ def main(config):
         if not checkFileList(filelist):
             LOGGER.warning("Not all files exist")
             continue
-        else:
-            tds = processFiles(filelist)
-            tds.attrs.update({"history":provmsg})
-            LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
-            radar(tds.max_radar_refl_1km, rng[1]-1,
-                  pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
-                  metadata={"history":provmsg})
-            outds = xr.Dataset({"radar": tds.max_radar_refl_1km.max(axis=0)},
-                                attrs=tds.attrs)
-            outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
+
+        tds = processFiles(filelist)
+        tds.attrs.update({"history":provmsg})
+        LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
+        radar(tds.max_radar_refl_1km, rng[1]-1,
+                pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
+                metadata={"history":provmsg})
+        outds = xr.Dataset({"radar": tds.max_radar_refl_1km.max(axis=0)},
+                            attrs=tds.attrs)
+        outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
 
 def processFiles(filelist):
     """
