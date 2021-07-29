@@ -1,0 +1,15 @@
+channels:
+  - conda-forge
+  - defaults
+  - bioconda
+dependencies:
+  - cartopy
+  - netcdf4
+  - cfgrib
+  - pydap
+  - gitpython
+  - tendo
+  - seaborn
+  - dask
+  - pysftp
+
