@@ -1,3 +1,30 @@
+"""
+process_que.py - move files from incoming folder to processing folder.
+
+This program move files from a temporary incoming location to a processing
+folder, to ensure the processing does not try and process partially written
+files. The program is designed to be continuously running, checking
+periodically for files and moving any new files as per the configuration.
+
+Files are grouped into categories, enabling glob-style definitions to move
+to destination folders. Default settings can be used for files that do not
+match any of the defined categories.
+
+Requirements:
+1) a suitably defined conda environment
+2) the pylib library of functions
+
+.. code::
+
+    CALL conda.bat activate process
+    set PYTHONPATH=C:\Workspace\lib\python
+    cd \WorkSpace\bin\process\que
+    python process_que.py -c process_que.ini
+
+
+
+"""
+
 import os
 import sys
 import time
