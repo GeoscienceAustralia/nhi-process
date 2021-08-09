@@ -166,7 +166,9 @@ def processArchiveFile(config):
     """
     Process an archive ACCESS-C file. Requires a modified configuration file,
     and the data file to be prepared using the historical archive of ACCESS-C
-    data available on the NCI (project wr45)
+    data available on the NCI (project wr45).
+
+    Source: https://dx.doi.org/10.25914/608a993391647
 
     The following command will merge the required analysis and forecast time
     periods for use in this function:
@@ -182,6 +184,7 @@ def processArchiveFile(config):
     LOGGER.info(f"Processing an archive ACCESS file")
     provmsg = (f"{datetime.now():%Y-%m-%d %H:%M:%S}: {basename(sys.argv[0])}"
                f" -c {basename(configFile)} ({flProgramVersion(dirname(sys.argv[0]))})")
+               
 
     LOGGER.debug(provmsg)
     provflag = False
@@ -192,6 +195,9 @@ def processArchiveFile(config):
     inputPath = config.get('Files', 'SourceDir')
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
     filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.wndgust10m.{fcast_time}.surface.nc4")
+    sourcemsg = ("APS3 ACCESS Numerical Weather Prediction (NWP) Models "
+                 "- Operational Reference Data Collection "
+                 "https://dx.doi.org/10.25914/608a993391647")
 
     try:
         tds = xr.open_dataset(filename)
@@ -202,6 +208,10 @@ def processArchiveFile(config):
         tds.attrs['history'] = tds.attrs['history'] + provmsg
     else:
         tds.attrs.update({"history":provmsg})
+    if 'source' in tds.attrs:
+        tds.attrs['source'] = tds.attrs['source'] + sourcemsg
+    else:
+        tds.attrs.update({'source':sourcemsg})
 
     for fp, rng in forecast_periods.items():
         tda = tds.isel(time=slice(*rng)).wndgust10m

@@ -4,6 +4,9 @@ from BoM.
 
 Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv
 
+Objective Tropical Cyclone Reanalysis:
+Source: http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv
+
 NOTE:: A number of minor edits are required to ensure the data is correctly
 read. The original source file contains some carriage return characters in the
 "COMMENTS" field which throws out the normal `pandas.read_csv` function. If it's
@@ -20,6 +23,8 @@ import seaborn as sns
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+
+from sklearn.linear_model import LinearRegression
 
 mpl.rcParams['grid.linestyle'] = ':'
 mpl.rcParams['grid.linewidth'] = 0.5
@@ -40,6 +45,34 @@ def season(year, month):
     if month < 6:
         s = year - 1
     return int(s)
+
+def regression_trend(numbers, start_year, end_year):
+    """
+    Calculate the trend for linear regression of TC numbers for a range of
+    years. 
+
+    :param numbers: `pandas.DataFrame` that contains the annual number of TCs.
+    :param int start_year: First year to calculate regression for
+    :param int end_year: Last year to calculate regression for
+
+    :returns: `pandas.DataFrame` containing the slope, intercept and R-squared
+    value for each regression.
+    """
+    years = pd.to_datetime([datetime(y, 1, 1) for y in range(start_year, end_year+1)])
+    results = pd.DataFrame(columns=['slope', 'intercept', 'rsq'],
+                           index=years)
+    for year in years:
+        idx = numbers.index >= year.year
+        x = numbers.index[idx].values.reshape(-1, 1)
+        y = numbers.ID[idx].values
+        model = LinearRegression()
+        model.fit(x, y)
+        slope = model.coef_
+        intercept = model.intercept_
+        r_sq = model.score(x, y)
+        results.loc[year] = [slope, intercept, r_sq]
+
+    return results
 
 # Start with the default TC best track database:
 inputPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc"
@@ -94,9 +127,9 @@ ax.set_xlabel("Season")
 ax.set_ylabel("Count")
 ax.legend(fontsize='small')
 plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
-         transform=ax.transAxes, fontsize='x-small', ha='left',)
+         transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
-         transform=ax.transAxes, fontsize='x-small', ha='right')
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "TC_frequency.png"), bbox_inches='tight')
 
 # Add regression lines - one for all years >= 1970, another for all years >= 1985
@@ -193,11 +226,32 @@ ax.set_xlabel("Season")
 ax.set_ylabel("Count")
 ax.legend(fontsize='small')
 plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv",
-         transform=ax.transAxes, fontsize='x-small', ha='left',)
+         transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
-         transform=ax.transAxes, fontsize='x-small', ha='right')
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "TC_frequency_reg_otcr.png"), bbox_inches='tight')
 
 
 otcrns.to_csv(pjoin(outputPath, "severe_tcs_otcr.csv"))
 otcrsc.to_csv(pjoin(outputPath, "all_tcs_otcr.csv"))
+
+
+# Calculate the trends for a range of years:
+# Use the IDCKMSTM0S.csv data for this bit
+rdf = regression_trend(sc, 1970, 2000)
+fig, ax = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+fig.patch.set_facecolor('white')
+
+ax[0].plot(rdf.index, rdf.slope*10)
+ax[0].set_ylabel("Trend [TCs/decade]")
+ax[0].grid(True)
+ax[1].plot(rdf.index, rdf.rsq)
+ax[1].set_ylabel(r"$R^2$")
+ax[1].grid(True)
+ax[1].xaxis.set_major_locator(locator)
+ax[1].xaxis.set_major_formatter(formatter)
+plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+         transform=ax[1].transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax[1].transAxes, fontsize='xx-small', ha='right')
+plt.savefig(pjoin(outputPath, "TC_trends.png"), bbox_inches='tight')

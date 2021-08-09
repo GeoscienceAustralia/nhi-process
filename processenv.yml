@@ -1,3 +1,4 @@
+name: process
 channels:
   - conda-forge
   - defaults
