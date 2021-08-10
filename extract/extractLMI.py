@@ -61,34 +61,34 @@ outputPath = "X:/georisk/HaRIA_B_Wind/data/derived/tc/lmi"
 inputFile = pjoin(inputPath, "Objective Tropical Cyclone Reanalysis - QC.csv")
 source = "http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv"
 
-best = pd.read_csv(inputFile,
-                   skiprows=[1],
-                   usecols=[0, 1, 2, 7, 8, 11, 12, 13, 19, 52],
-                   na_values=[' '],
-                   parse_dates=['TM'],
-                   infer_datetime_format=True)
+usecols = [0, 1, 2, 7, 8, 11, 12, 13]
+colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
+            'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)', 
+            'POCI (Lok, hPa)']
+dtypes = [str, str, str, float, float, float, float, float]
 
-best.rename(columns={
-    'DISTURBANCE_ID':'num',
-    'TM':'datetime',
-    'LAT': 'lat', 'LON':'lon',
-    'adj. ADT Vm (kn)':'vmax',
-    'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)': 'pmin',
-    'POCI (Lok, hPa)':'poci',
-    'CENTRAL_PRES':'pmin_old',
-    'MAX_WIND_SPD':'vmax_old'
-                     },
-            inplace=True)
+df = pd.read_csv(inputFile, usecols=usecols,
+                 dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
+colrenames = {'DISTURBANCE_ID': 'num',
+              'LON': 'lon', 'LAT': 'lat',
+              'adj. ADT Vm (kn)':'vmax',
+              'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)': 'pmin',
+              'POCI (Lok, hPa)': 'poci'}
+df.rename(colrenames, axis=1, inplace=True)
 
-best = best[best.vmax.notnull()]
-obstc = filter_tracks_domain(best, 90, 160, -35, -5)
+df['datetime'] = pd.to_datetime(df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
+df['year'] = pd.DatetimeIndex(df['TM']).year
+df['month'] = pd.DatetimeIndex(df['TM']).month
+
+df = df[df.vmax.notnull()]
+obstc = filter_tracks_domain(df, 90, 160, -35, -5)
 
 obstc['deltaT'] = obstc.datetime.diff().dt.total_seconds().div(3600, fill_value=0)
 idx = obstc.num.values
 varidx = np.ones(len(idx))
 varidx[1:][idx[1:] == idx[:-1]] = 0
 speed, bearing = getSpeedBearing(varidx, obstc.lon.values, obstc.lat.values, obstc.deltaT.values)
-speed[varidx==1] = 0
+speed[varidx == 1] = 0
 obstc['speed'] = speed
 
 lmidf = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]
@@ -102,7 +102,7 @@ lmidf['initlon'] = obstc.loc[obstc.index.to_series().groupby(obstc['num']).first
 lmidf['lmilat'] = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]['lat']
 lmidf['lmilon'] = obstc.loc[obstc.groupby(["num"])["vmax"].idxmax()]['lon']
 
-lmidf.to_csv(pjoin(outputPath, "OTCR.lmi.csv"), index=False, date_format=DATEFMT)
+lmidf.to_csv(pjoin(outputPath, "OTCR.lmi.20210810.csv"), index=False, date_format=DATEFMT)
 
 # Plot distribution of LMI:
 fig, ax = plt.subplots(figsize=(10, 8))
@@ -130,7 +130,7 @@ sns.regplot(x='lmidtyear', y='lmilat', data=lmidf, ax=ax)
 ax.grid(True)
 ax.set_xlabel("Season")
 ax.set_ylabel(r"Latitude of LMI [$^{\circ}$S]")
-plt.text(0.0, -0.1, f"Source: {source}",
+plt.text(-0.1, -0.1, f"Source: {source}",
          transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
@@ -142,8 +142,21 @@ sns.regplot(x='lmidtyear', y='vmax', data=lmidf, ax=ax)
 ax.grid(True)
 ax.set_xlabel("Season")
 ax.set_ylabel(r"Maximum wind speed [kts]")
-plt.text(0.0, -0.1, f"Source: {source}",
+plt.text(-0.1, -0.1, f"Source: {source}",
          transform=ax.transAxes, fontsize='xx-small', ha='left',)
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax.transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "lmivmax_timeseries.png"), bbox_inches='tight')
+
+# Plot a scatter plot of LMI vs time to LMI:
+fig, ax = plt.subplots(figsize=(10, 10))
+ax = sns.jointplot(
+    x='lmitelapsed', y='vmax', data=lmidf, joint_kws={'alpha':0.5}
+    ).plot_joint(sns.kdeplot, zorder=1000, n_levels=6)
+
+ax.set_axis_labels("Time to LMI [hrs]", 'LMI [kts]')
+plt.text(-0.1, -0.1, f"Source: {source}",
+         transform=ax.ax_joint.transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.1, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.ax_joint.transAxes, fontsize='xx-small', ha='right')
+plt.savefig(pjoin(outputPath, "lmivmax_timeelapsed.png"), bbox_inches='tight')
