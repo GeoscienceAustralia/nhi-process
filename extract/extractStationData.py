@@ -139,7 +139,7 @@ def processFiles(config):
                 elif deleteWhenProcessed:
                     os.unlink(f)
 
-def processFile(filename, outputDir):
+def processFile(filename: str, outputDir: str) -> bool:
     """
     process a file and store output in the given output directory
     """
@@ -166,7 +166,7 @@ def processFile(filename, outputDir):
         rc = False
     return rc
 
-def getStationList(stnfile):
+def getStationList(stnfile: str) -> pd.DataFrame:
     LOGGER.debug(f"Retrieving list of stations from {stnfile}")
     colnames = ["id", 'stnNum', 'rainfalldist', 'stnName', 'stnOpen', 'stnClose',
             'stnLat', 'stnLon', 'stnLoc', 'stnState', 'stnElev', 'stnBarmoeterElev',

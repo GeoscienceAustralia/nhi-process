@@ -153,10 +153,10 @@ def main(config):
         tds.attrs.update({"history":provmsg})
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
         radar(tds.max_radar_refl_1km, rng[1]-1,
-                pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
-                metadata={"history":provmsg})
+              pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
+              metadata={"history":provmsg})
         outds = xr.Dataset({"radar": tds.max_radar_refl_1km.max(axis=0)},
-                            attrs=tds.attrs)
+                           attrs=tds.attrs)
         outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
 
 def processFiles(filelist):
