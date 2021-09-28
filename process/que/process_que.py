@@ -22,7 +22,6 @@ Requirements:
     python process_que.py -c process_que.ini
 
 
-
 """
 
 import os
@@ -40,6 +39,7 @@ from tendo import singleton
 
 g_files = {}
 LOGGER = logging.getLogger()
+
 def start():
     """
     Handle command line args, start loggers, and call
@@ -70,7 +70,7 @@ def start():
         try:
             os.makedirs(logdir)
         except OSError:
-            logFile = pjoin(os.getcwd(), 'fetch.log')
+            logFile = pjoin(os.getcwd(), 'process_que.log')
 
     logLevel = config.get('Logging', 'LogLevel', fallback='INFO')
     verbose = config.getboolean('Logging', 'Verbose', fallback=False)
@@ -97,11 +97,14 @@ def ListAllFiles(config):
 
 def processFiles(config):
     """
-    This is used to move files from a source directory to a destination directory, 
-    as specified for each category in the configuration file. It serves as the 
-    basis of `process_que.py`
-    
-    The function relies on the existence of global variables `g_files` and the `config` object
+    This is used to move files from a source directory to a destination
+    directory, as specified for each category in the configuration file.
+    It serves as the basis of `process_que.py`
+
+    The function relies on the existence of global variables `g_files`
+    and the `config` object
+
+    :param config: A :class:`configparser.ConfigParser` object.
     """
 
     global g_files
@@ -132,7 +135,12 @@ def processFiles(config):
                 LOGGER.warn(f"Cannot move {file} to {dest_file}")
         LOGGER.info(f"Moved {fileNum} {category} files")
 
-def cnfRefreshCachedIniFile(configFile):
+def cnfRefreshCachedIniFile(configFile: str):
+    """
+    Update the configuration file by reading from the file again.
+
+    :param configFile: Path to an updated configuration file
+    """
     global config
     LOGGER.info(f"Reloading {configFile}")
     config = ConfigParser(allow_no_value=True,
@@ -142,7 +150,13 @@ def cnfRefreshCachedIniFile(configFile):
     #return config
 
 def mainLoop(config):
+    """
+    Main processing loop. All required settings are read from the
+    :class:`configparser.ConfigParser` object. This initiates a continuous loop
+    that sleeps for a defined interval between running actions. 
 
+    :param config: A :class:`configparser.ConfigParser` object
+    """
     logFile = config.get('Logging', 'LogFile')
     logLevel = config.get('Logging', 'LogLevel', fallback='INFO')
     verbose = config.getboolean('Logging', 'Verbose', fallback=True)
@@ -158,7 +172,6 @@ def mainLoop(config):
 
         if config.getboolean("Preferences", "RefreshConfigFile", fallback=True):
             cnfRefreshCachedIniFile(configFile)
-            #pass
 
         ListAllFiles(config)
         processFiles(config)
