@@ -132,7 +132,7 @@ def processFiles(config):
                 fileNum += 1
 
             except OSError:
-                LOGGER.warn(f"Cannot move {file} to {dest_file}")
+                LOGGER.warning(f"Cannot move {file} to {dest_file}")
         LOGGER.info(f"Moved {fileNum} {category} files")
 
 def cnfRefreshCachedIniFile(configFile: str):
