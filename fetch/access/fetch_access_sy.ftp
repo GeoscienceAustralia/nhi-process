@@ -9,8 +9,8 @@ connect
 
 cd /register/bom990/access_c3_nwp4
 binary
+mget IDY25421.APS3.group1.*.nc4
 mget IDY25421.APS3.group2.*.nc4
-
 cd /register/bom990/access_c3_grib2
 mget IDY25421.APS3.helicity.*.grb2
 
