@@ -89,7 +89,10 @@ def windgust(da, fh, outputFile, metadata):
 def helicity(da, fh, outputFile, metadata):
     """
     Plot updraft helicity. In southern hemisphere, we use the *minimum* updraft
-    helicity, since the relative vorticity is *negative*.
+    helicity, since the relative vorticity is *negative*. There may be
+    situations where positive updraft helicity arises (anti-cyclonic rotating
+    updrafts), so we may want to update this and use the absolute value of both
+    maximum and minimum updraft helicity.
 
     :param da: `xarray.DataArray`
     """
@@ -147,7 +150,7 @@ def radar(da, fh, outputFile, metadata):
              ha='left', fontsize='medium')
     plt.text(1.0, 1.01, f"Valid time:\n{vt}", transform=ax.transAxes,
              ha='right', fontsize='medium')
-    ax.set_title("Radar reflectivity")
+    ax.set_title("Radar reflectivity 1km AGL")
     ax.coastlines(resolution='10m')
     ax.add_feature(states, edgecolor='0.15', linestyle='--')
 
