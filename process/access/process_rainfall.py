@@ -6,7 +6,8 @@ from os.path import join as pjoin, isfile, dirname, basename, splitext, realpath
 from datetime import datetime, timedelta
 from plotting import precip
 
-from files import flStartLog, flProgramVersion
+from files import flStartLog, flProgramVersion, flGetStat
+from process import pWriteProcessedFile, pArchiveFile, pAlreadyProcessed, pInit
 from dtutils import currentCycle
 
 import xarray as xr
@@ -25,8 +26,7 @@ DOMAINS = {"VT":"IDY25420",
 g_files = {}
 forecast_periods = {"00-12": (0, 13),
                     "12-24": (14, 25),
-                    "24-36": (26, 37),
-                    "00-36": (0, 37)}
+                    "24-36": (26, 37)}
 
 def checkFileList(filelist: list) -> bool:
     """
@@ -36,13 +36,25 @@ def checkFileList(filelist: list) -> bool:
 
     :returns: `True` if all files exist, `False` otherwise.
     """
-    
+
     if all([isfile(f) for f in filelist]):
         LOGGER.debug("All required files exist")
         return True
     else:
         for f in list(filterfalse(isfile, filelist)):
             LOGGER.warning(f"Missing: {f}")
+        return False
+    
+def checkProcessed(filelist: list) -> bool:
+    rclist = []
+    for file in filelist:
+        directory, fname, md5sum, moddate = flGetStat(file)
+        if pAlreadyProcessed(directory, fname, "md5sum", md5sum):
+            LOGGER.debug(f"Already processed {file}")
+            rclist.append(True)
+    if any(rclist):
+        return True
+    else:
         return False
 
 def start():
@@ -75,6 +87,7 @@ def start():
     verbose = config.getboolean('Logging', 'Verbose', fallback=verbose)
     datestamp = config.getboolean('Logging', 'Datestamp', fallback=False)
     LOGGER = flStartLog(logFile, logLevel, verbose, datestamp)
+    pInit(configFile)
 
     if args.archive:
         processArchiveFile(config)
@@ -101,6 +114,7 @@ def main(config):
     group = config.get('Forecast', 'Group', fallback="group2")
     inputPath = config.get('Files', 'SourceDir')
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
+    deleteWhenProcessed = config.getboolean('Files', 'DeleteWhenProcessed', fallback=False)
 
     fcast_time = currentCycle(delay=delay)
     fcast_time_str = fcast_time.strftime(DATETIMEFMT)
@@ -112,17 +126,13 @@ def main(config):
         if not checkFileList(filelist):
             LOGGER.warning("Not all files exist")
             continue
+        if checkProcessed(filelist):
+            LOGGER.info("Already processed files")
+            continue
+
         tds = xr.open_mfdataset(filelist, combine='by_coords')
         tda = tds.accum_prcp
         tda.attrs['accum_type'] = 'accumulative'
-        #lon = tds.lon
-        #lat = tds.lat
-        #newda = xr.DataArray(tda,
-        #                     coords=[lat, lon], 
-        #                     dims=['lat', 'lon'],
-        #                     attrs=tda.attrs)
-
-        # Add provenance message to the netcdf file
         if 'history' in tds.attrs:
             tds.attrs['history'] = tds.attrs['history'] + provmsg
         else:
@@ -133,6 +143,12 @@ def main(config):
         precip(tda, rng[1]-1, 
                pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.png"),
                metadata={"history":provmsg})
+        tds.close()
+        for file in filelist:
+            pWriteProcessedFile(file)
+            pArchiveFile(file)
+
+    LOGGER.info("Completed processing")
 
 
 def processArchiveFile(config):

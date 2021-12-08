@@ -31,10 +31,11 @@ states = cfeature.NaturalEarthFeature(
 def precip(da, fh, outputFile, metadata):
     ax = plt.axes(projection=ccrs.PlateCarree())
     ax.figure.set_size_inches(15,12)
-
-    (da.isel(time=-1) - da.isel(time=0)).plot.contourf(ax=ax, transform=ccrs.PlateCarree(), 
-                                   levels=preciplevels, extend='both',cmap=precipcmap,
-                                   cbar_kwargs=cbar_kwargs)
+    tmpda = da.isel(time=-1) - da.isel(time=0)
+    tmpda.attrs = da.attrs
+    tmpda.plot.contourf(ax=ax, transform=ccrs.PlateCarree(), 
+                        levels=preciplevels, extend='both',cmap=precipcmap,
+                        cbar_kwargs=cbar_kwargs)
     ax.set_aspect('equal')
 
     vt = pd.to_datetime(da.isel(time=-1).time.values).strftime("%Y-%m-%d %H:%M")
