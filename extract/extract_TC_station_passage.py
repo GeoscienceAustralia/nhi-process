@@ -5,17 +5,19 @@ of a weather station
 """
 
 import os
+import logging
 from os.path import join as pjoin
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from pyproj import Geod
-
 import matplotlib.pyplot as plt
+from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import box as sbox
 
 from Utilities import track
-from shapely.geometry import LineString, Point, Polygon, sbox
+
+logger = logging.getLogger()
 
 def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0):
     """
@@ -38,6 +40,7 @@ def filter_tracks_domain(df, minlon=90, maxlon=180, minlat=-40, maxlat=0):
 
     :returns: :class:`pd.DataFrame` of tracks that pass through the given box.
     """
+    logger.info("Filtering tracks to the given domain")
     domain = sbox(minlon, minlat, maxlon, maxlat, ccw=False)
     tracks = df.groupby('num')
     tempfilter = tracks.filter(lambda x: len(x) > 1)
@@ -55,16 +58,26 @@ def load_obs_tracks(trackfile: str) -> gpd.GeoDataFrame:
 
     :returns: :class:`geopandas.GeoDataFrame`
     """
+    logger.info(f"Loading tracks from {trackfile}")
+    usecols = [0, 1, 2, 7, 8, 11, 12, 13]
+    colnames = ['NAME', 'DISTURBANCE_ID', 'TM', 'LAT', 'LON',
+                'adj. ADT Vm (kn)', 'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)', 
+                'POCI (Lok, hPa)']
+    dtypes = [str, str, str, float, float, float, float, float]
 
-    obstc = pd.read_csv(trackfile,
-                        skiprows=[1],
-                        usecols=[0, 6, 8, 9, 11, 113],
-                        na_values=[' '],
-                        parse_dates=[1])
-    obstc.rename(columns={'SID':'num', 'LAT': 'lat', 'LON':'lon',
-                          'WMO_PRES':'pmin', 'BOM_POCI':'poci'},
-                inplace=True)
-    obstc = filter_tracks_domain(obstc)
+    df = pd.read_csv(trackfile, usecols=usecols,
+                 dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
+    colrenames = {'DISTURBANCE_ID': 'num',
+                  'TM': 'datetime',
+                  'LON': 'lon', 'LAT': 'lat',
+                  'adj. ADT Vm (kn)':'vmax',
+                  'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)': 'pmin',
+                  'POCI (Lok, hPa)': 'poci'}
+    df.rename(colrenames, axis=1, inplace=True)
+
+    df['datetime'] = pd.to_datetime(df.datetime, format="%Y-%m-%d %H:%M", errors='coerce')
+
+    obstc = filter_tracks_domain(df)
     trackgdf = []
     for k, t in obstc.groupby('num'):
         segments = []
@@ -81,7 +94,7 @@ def load_obs_tracks(trackfile: str) -> gpd.GeoDataFrame:
         trackgdf.append(gdf)
 
     trackgdf = pd.concat(trackgdf)
-    trackgdf = trackgdf.to_crs("EPSG:4326") # WGS84 for IBTrACS - double check!
+    trackgdf = trackgdf.set_crs("EPSG:4326") # WGS84 for IBTrACS - double check!
     return trackgdf
 
 def load_stations(stationfile: str, dist: float) -> gpd.GeoDataFrame:
@@ -95,6 +108,7 @@ def load_stations(stationfile: str, dist: float) -> gpd.GeoDataFrame:
     :param dist: Buffer distance around each station - needs to be in the same
     units as the station coordinates (i.e. probably degrees)
     """
+    logger.info(f"Loading stations from {stationfile}")
     colnames = ["id", 'stnNum', 'rainfalldist', 'stnName', 'stnOpen',
                 'stnClose', 'stnLat', 'stnLon', 'stnLoc', 'stnState',
                 'stnElev', 'stnBarmoeterElev', 'stnWMOIndex',
@@ -102,11 +116,21 @@ def load_stations(stationfile: str, dist: float) -> gpd.GeoDataFrame:
                 'pctY', 'pctN', 'pctW', 'pctS', 'pctI']
 
     df = pd.read_csv(stationfile, sep=',', index_col=False,
-                     names=colnames, keep_default_na=False)
+                     names=colnames, keep_default_na=False,
+                     header=0)
     gdf = gpd.GeoDataFrame(df,
                            geometry=gpd.points_from_xy(
-                               df.stnLon, df.stnLat, crs="EPSG:7844")
+                               df.stnLon, df.stnLat, crs="EPSG:7844").buffer(dist)
                            )
-    gdf = gdf.buffer(dist)
+    #gdf['geometry'] = gdf.buffer(dist)
     return gdf
 
+
+stationFile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2019\Daily\DC02D_StnDet_999999999632559.txt"
+trackFile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc\Objective Tropical Cyclone Reanalysis - QC.csv"
+
+tracks = load_obs_tracks(trackFile)
+stations = load_stations(stationFile, 3)
+
+selected = gpd.overlay(tracks, stations.to_crs(tracks.crs), how='intersection')
+import pdb; pdb.set_trace()

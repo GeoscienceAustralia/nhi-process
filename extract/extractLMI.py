@@ -70,15 +70,16 @@ dtypes = [str, str, str, float, float, float, float, float]
 df = pd.read_csv(inputFile, usecols=usecols,
                  dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
 colrenames = {'DISTURBANCE_ID': 'num',
+              'TM': 'datetime',
               'LON': 'lon', 'LAT': 'lat',
               'adj. ADT Vm (kn)':'vmax',
               'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)': 'pmin',
               'POCI (Lok, hPa)': 'poci'}
 df.rename(colrenames, axis=1, inplace=True)
 
-df['datetime'] = pd.to_datetime(df.TM, format="%Y-%m-%d %H:%M", errors='coerce')
-df['year'] = pd.DatetimeIndex(df['TM']).year
-df['month'] = pd.DatetimeIndex(df['TM']).month
+df['datetime'] = pd.to_datetime(df.datetime, format="%Y-%m-%d %H:%M", errors='coerce')
+df['year'] = pd.DatetimeIndex(df['datetime']).year
+df['month'] = pd.DatetimeIndex(df['datetime']).month
 
 df = df[df.vmax.notnull()]
 obstc = filter_tracks_domain(df, 90, 160, -35, -5)

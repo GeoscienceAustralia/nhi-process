@@ -41,10 +41,10 @@ def season(year, month):
     :params int month: Month
 
     """
-    s = year
+    season = year
     if month < 6:
-        s = year - 1
-    return int(s)
+        season = year - 1
+    return int(season)
 
 def regression_trend(numbers, start_year, end_year):
     """
@@ -92,7 +92,6 @@ df['year'] = pd.DatetimeIndex(df['TM']).year
 df['month'] = pd.DatetimeIndex(df['TM']).month
 df['season'] = df[['year', 'month']].apply(lambda x: season(*x), axis=1)
 
-
 # Determine season based on the coded disturbance identifier:
 # This is of the form "AU201617_<ID>". The first four digits represent the first
 # year of the season, the last two the second year of the season
@@ -101,6 +100,7 @@ df['season'] = df[['year', 'month']].apply(lambda x: season(*x), axis=1)
 new = df['DISTURBANCE_ID'].str.split("_", expand=True)
 df['ID'] = new[1]
 df['IDSEAS'] = new[0].str[:6].str.strip('AU').astype(int)
+
 # Calculate the number of unique values in each season:
 sc = df.groupby(['IDSEAS']).nunique()
 
@@ -157,10 +157,33 @@ xlim = ax.get_xlim()
 ns.to_csv(pjoin(outputPath, "severe_tcs.csv"))
 sc.to_csv(pjoin(outputPath, "all_tcs.csv"))
 
+# Calculate and plot the fraction of observations with central pressure, maximum
+# wind speed and maximum wind gust by season.
+fracdf = df.groupby('IDSEAS').apply(lambda x: x.notnull().mean())
+fracdf.to_csv(pjoin(outputPath, "fraction_complete.csv"))
+fig, ax = plt.subplots(figsize=(10, 5))
+fig.patch.set_facecolor('white')
+sns.lineplot(data=fracdf[['CENTRAL_PRES', 'MAX_WIND_SPD', 'MAX_WIND_GUST']][idx], ax=ax)
+ax.set_xlabel("Season")
+ax.set_ylabel("Fraction complete")
+ax.legend(fontsize='small')
+ax.grid(True)
+plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
+         transform=ax.transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
+plt.savefig(pjoin(outputPath, "TC_fraction_complete.png"), bbox_inches='tight')
 
 
+"""
+Following is an analysis of the Objective TC Reanalysis dataset, created by Joe
+Courtney (BoM) in 2017. The data is available online, but requires minor quality
+controls for some comments that include carriage return characters.
+
+http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv
 
 
+"""
 
 dataFile = pjoin(inputPath, r"Objective Tropical Cyclone Reanalysis - QC.csv")
 usecols = [0, 1, 2, 7, 8, 11, 12]
@@ -170,11 +193,12 @@ dtypes = [str, str, str, float, float, float, float]
 otcrdf = pd.read_csv(dataFile, usecols=usecols,
                      dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
 colrenames = {'adj. ADT Vm (kn)':'MAX_WIND_SPD',
+              'TM': 'datetime',
               'CP(CKZ(Lok R34,LokPOCI, adj. Vm),hPa)': 'CENTRAL_PRES'}
 otcrdf.rename(colrenames, axis=1, inplace=True)
-otcrdf['TM'] = pd.to_datetime(otcrdf.TM, format="%Y-%m-%d %H:%M", errors='coerce')
-otcrdf['year'] = pd.DatetimeIndex(otcrdf['TM']).year
-otcrdf['month'] = pd.DatetimeIndex(otcrdf['TM']).month
+otcrdf['datetime'] = pd.to_datetime(otcrdf.datetime, format="%Y-%m-%d %H:%M", errors='coerce')
+otcrdf['year'] = pd.DatetimeIndex(otcrdf['datetime']).year
+otcrdf['month'] = pd.DatetimeIndex(otcrdf['datetime']).month
 otcrdf['season'] = otcrdf[['year', 'month']].apply(lambda x: season(*x), axis=1)
 
 new = otcrdf['DISTURBANCE_ID'].str.split("_", expand=True)
@@ -235,10 +259,28 @@ plt.savefig(pjoin(outputPath, "TC_frequency_reg_otcr.png"), bbox_inches='tight')
 otcrns.to_csv(pjoin(outputPath, "severe_tcs_otcr.csv"))
 otcrsc.to_csv(pjoin(outputPath, "all_tcs_otcr.csv"))
 
+# Calculate and plot the fraction of observations with central pressure, maximum
+# wind speed and maximum wind gust by season.
+fracdf = otcrdf.groupby('IDSEAS').apply(lambda x: x.notnull().mean())
+fracdf.to_csv(pjoin(outputPath, "fraction_complete.otcr.csv"))
+fig, ax = plt.subplots(figsize=(10, 5))
+fig.patch.set_facecolor('white')
+sns.lineplot(data=fracdf[['CENTRAL_PRES', 'MAX_WIND_SPD']][idx], ax=ax)
+ax.set_xlabel("Season")
+ax.set_ylabel("Fraction complete")
+ax.legend(fontsize='small')
+ax.grid(True)
+plt.text(0.0, -0.1,
+         "Source: http://www.bom.gov.au/cyclone/history/database/OTCR_alldata_final_external.csv",
+         transform=ax.transAxes, fontsize='xx-small', ha='left',)
+plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
+         transform=ax.transAxes, fontsize='xx-small', ha='right')
+plt.savefig(pjoin(outputPath, "TC_fraction_complete.otcr.png"), bbox_inches='tight')
+
 
 # Calculate the trends for a range of years:
 # Use the IDCKMSTM0S.csv data for this bit
-rdf = regression_trend(sc, 1970, 2000)
+rdf = regression_trend(sc, 1950, 2000)
 fig, ax = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 fig.patch.set_facecolor('white')
 
@@ -255,3 +297,4 @@ plt.text(0.0, -0.1, "Source: http://www.bom.gov.au/clim_data/IDCKMSTM0S.csv",
 plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
          transform=ax[1].transAxes, fontsize='xx-small', ha='right')
 plt.savefig(pjoin(outputPath, "TC_trends.png"), bbox_inches='tight')
+rdf.to_csv(pjoin(outputPath, "regression_trend.csv"))
