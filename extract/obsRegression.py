@@ -1,5 +1,6 @@
 import os
 import re
+import gc
 from os.path import join as pjoin
 
 import pandas as pd
@@ -7,6 +8,8 @@ import xarray as xr
 import numpy as np
 import geopandas as gpd
 from datetime import datetime
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
@@ -15,11 +18,10 @@ import statsmodels.api as sm
 
 locator = mdates.AutoDateLocator(minticks=3, maxticks=9)
 formatter = mdates.ConciseDateFormatter(locator)
-obspath = "C:/WorkSpace/data/observations/wind"
 obspath = "X:/georisk/HaRIA_B_Wind/data/derived/obs/1-minute/wind"
-reanpath = "C:/WorkSpace/reanalysis/data/timeseries"
-stationfile = "C:/WorkSpace/reanalysis/data/stationlist.shp"
-outputPath = "X:/georisk/HaRIA_B_Wind/data/derived/obs/1-minute/wind/regression"
+reanpath = "X:/georisk/HaRIA_B_Wind/data/derived/reanalysis/era5/timeseries/10fg/station"
+stationfile = "X:/georisk/HaRIA_B_Wind/data/derived/reanalysis/era5/timeseries/stationlist.shp"
+outputPath = "X:/georisk/HaRIA_B_Wind/data/derived/obs/1-minute/wind/regression/10fg"
 
 stations = gpd.read_file(stationfile)
 stations['rsq'] = 0
@@ -31,6 +33,7 @@ stations['bciu'] = 0
 stations['bcil'] = 0
 stations['nobs'] = 0
 
+varname = "fg10"
 
 obsfilelist = os.listdir(obspath)
 reanfilelist = os.listdir(reanpath)
@@ -54,14 +57,14 @@ for idx, stn in stations.iterrows():
         print("Insufficient observations")
         continue
     reands = xr.open_dataset(reandatafile)
-    reandf = reands.i10fg.to_dataframe().reset_index()
+    reandf = reands[varname].to_dataframe().reset_index()
 
     jointdf = obsdf.merge(reandf.rename(columns={'time':'date'}))
 
-    jointdf['i10fg'] = jointdf['i10fg'] * 3.6
+    jointdf[varname] = jointdf[varname] * 3.6
 
     fig, ax = plt.subplots(figsize=(12, 4))
-    plt.plot(reandf.time, reandf.i10fg*3.6, alpha=0.5, label="Reanalysis")
+    plt.plot(reandf.time, reandf[varname]*3.6, alpha=0.5, label="Reanalysis")
     plt.plot(pd.to_datetime(obsdf.date), obsdf.windgust, alpha=0.5, label="Observations")
     ax.xaxis.set_major_locator(locator)
     ax.xaxis.set_major_formatter(formatter)
@@ -73,9 +76,9 @@ for idx, stn in stations.iterrows():
     ax.set_ylabel("Gust wind speed [km/h]")
     plt.savefig(pjoin(outputPath, f"ts.{station:06d}.png"), bbox_inches='tight')
     plt.close(fig)
-    ax = sns.lmplot(data=jointdf, x='windgust', y='i10fg', scatter_kws={'alpha':0.25})
+    ax = sns.lmplot(data=jointdf, x='windgust', y=varname, scatter_kws={'alpha':0.25})
     x_fit = sm.add_constant(jointdf.windgust)
-    fit = sm.OLS(jointdf.i10fg, x_fit).fit()
+    fit = sm.OLS(jointdf[varname], x_fit).fit()
     ci = fit.conf_int()
     plt.plot(np.arange(0, 160), np.arange(0, 160), ls='--', color='k')
     ax.set_axis_labels('Observed wind gusts [km/h]', 'Reanalysis wind gusts [km/h]')
@@ -94,7 +97,8 @@ for idx, stn in stations.iterrows():
     stations.loc[stations.stnNum==station, 'mcil'] = ci[0].windgust
     stations.loc[stations.stnNum==station, 'mciu'] = ci[1].windgust
 
-    plt.close()
+    plt.close('all')
+    gc.collect()
 
 stations.to_file(pjoin(outputPath, 'stationlist.shp'))
 

@@ -41,6 +41,7 @@ fulldf = pd.concat(dflist, ignore_index=True)
 gdf = gpd.GeoDataFrame(fulldf, geometry=gpd.points_from_xy(fulldf.stnLon, fulldf.stnLat, crs="EPSG:7844"))
 gdf.to_file(pjoin(tempPath, "stationlist.shp"))
 gdf.to_file(pjoin(tempPath, "stationlist.json"), driver='GeoJSON')
+gdf.drop(columns=['geometry']).to_csv(pjoin(tempPath, "stationlist.csv"), index=False)
 
 states = cfeature.NaturalEarthFeature(
         category='cultural',
