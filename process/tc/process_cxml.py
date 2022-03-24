@@ -14,7 +14,8 @@ import pandas as pd
 from pycxml.pycxml import loadfile
 
 from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit
-from files import flStartLog, flGetStat
+from files import flStartLog, flGetStat, flModDate
+from dtutils import getCutoffTime
 from tendo import singleton
 
 g_files = {}
@@ -126,6 +127,7 @@ def processFiles(config):
     global LOGGER
     unknownDir = config.get('Defaults', 'UnknownDir')
     originDir = config.get('Defaults', 'OriginDir')
+    defaultCutOffDelta = config.get('Defaults', 'CutOffDelta')
     deleteWhenProcessed = config.getboolean('Files', 'DeleteWhenProcessed', fallback=False)
     outputDir = config.get('Output', 'Path', fallback=unknownDir)
     LOGGER.debug(f"Origin directory: {originDir}")
@@ -134,14 +136,20 @@ def processFiles(config):
     if not os.path.exists(unknownDir):
         os.mkdir(unknownDir)
 
+    if not os.path.exists(outputDir):
+        LOGGER.info(f"Creating output directory: {outputDir}")
+        os.mkdir(outputDir)
+
     category = "Input"
     for f in g_files[category]:
         LOGGER.info(f"Processing {f}")
+        fdate = flModDate(f, dateformat=None)
+
         directory, fname, md5sum, moddate = flGetStat(f)
-        cutOffDelta = config.getint(category, "CutOffDelta", fallback=6)
-        cutOffDateTime = dt.utcnow() - timedelta(hours=cutOffDelta)
-        LOGGER.debug(f"Cutoff time is: {cutOffDateTime}")
-        if dt.strptime(moddate, "%c") < cutOffDateTime:
+        cutOffDelta = config.get(category, 'CutOffDelta', fallback=defaultCutOffDelta)
+        cutofftime = getCutoffTime(cutOffDelta)
+        LOGGER.debug(f"Cutoff time is: {cutofftime}")
+        if fdate < cutofftime:
             LOGGER.info(f"{f} is too old (> {cutOffDelta} hours old). Skipping")
             continue
         if pAlreadyProcessed(directory, fname, "md5sum", md5sum):
