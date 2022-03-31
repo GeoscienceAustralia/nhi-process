@@ -149,7 +149,7 @@ def processFiles(config):
         for file in g_files[category]:
             fdate = flModDate(file, dateformat=None)
             if fdate < cutofftime:
-                LOGGER.info(f"{file} is too old")
+                LOGGER.debug(f"{file} is too old")
                 continue
             fileNum += 1
         if fileNum >= cutoff_num:
