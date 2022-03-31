@@ -70,5 +70,6 @@ gl = ax.gridlines(draw_labels=True, linestyle=":")
 gl.top_labels = False
 gl.right_labels = False
 ax.set_extent([105, 160, -45, -5])
+ax.set_title("AWS stations [>5 years data]")
 ax.set_aspect('equal')
 plt.savefig(pjoin(tempPath, "daily_aws_stations.png"), bbox_inches='tight')
