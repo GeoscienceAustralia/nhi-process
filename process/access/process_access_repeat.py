@@ -92,9 +92,9 @@ def processFiles(config):
         LOGGER.info(f"Processing {category} files")
         if category in g_files:
             fileNum = 0
-            cutoffNum = config.get(category, 'NumFiles')
+            cutoffNum = config.getint(category, 'NumFiles')
             # Cut off time difference given in hours:
-            cutoffDelta = config.get(category, 'CutoffTime', fallback=-6)
+            cutoffDelta = config.getint(category, 'CutoffTime', fallback=-6)
             cutoffDate = datetime.now() + timedelta(cutoffDelta/24)
             LOGGER.debug(f"Cutoff time: {cutoffDate}")
             action = config.get(category, 'Action')
@@ -111,6 +111,13 @@ def processFiles(config):
 
 
 def cnfRefreshCachedIniFile(configFile):
+    """
+    Update the contents of the configuration by re-reading the configuration file
+
+    :param str configFile: path to the configuration file.
+
+    :returns: Updates the global `config` object
+    """
     global config
     LOGGER.info(f"Reloading {configFile}")
     config = ConfigParser(allow_no_value=True,

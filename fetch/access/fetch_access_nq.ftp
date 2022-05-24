@@ -1,0 +1,18 @@
+# Connect to FTP site, fetch named files and quit
+
+host sftp-reg.cloud.bom.gov.au
+port 22
+
+user bom990
+private_key ~/.ssh/bom990_ssh_key.pem
+connect
+
+cd /register/bom990/access_c3_nwp4
+binary
+mget IDY25426.APS3.group1.*.nc4
+mget IDY25426.APS3.group2.*.nc4
+
+cd /register/bom990/access_c3_grib2
+mget IDY25426.APS3.helicity.*.grb2
+
+quit
