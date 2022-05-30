@@ -24,7 +24,8 @@ DOMAINS = {"VT":"IDY25420",
            "BN":"IDY25422",
            "PH":"IDY25423",
            "AD":"IDY25424",
-           "DN":"IDY25425"}
+           "DN":"IDY25425",
+           "NQ":"IDY25426"}
 
 g_files = {}
 forecast_periods = {"00-12": (1, 13),
