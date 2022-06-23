@@ -1,19 +1,14 @@
-import os
 import sys
-import glob
-import logging
 import argparse
 from configparser import ConfigParser, ExtendedInterpolation
 from itertools import filterfalse
-from os.path import join as pjoin, isfile, dirname, basename, splitext, realpath
+from os.path import join as pjoin, isfile, dirname, basename
 from datetime import datetime, timedelta
 from plotting import windgust
 
 from files import flStartLog, flProgramVersion
 
 import xarray as xr
-import pandas as pd
-import numpy as np
 import imageio.v2 as imageio
 
 global LOGGER
