@@ -10,7 +10,7 @@ import cartopy.crs as ccrs
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 import cartopy.feature as cfeature
 
-dataPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_bom/1-minute"
+dataPath = "X:/georisk/HaRIA_B_Wind/data/raw/from_bom/2022/1-minute"
 tempPath = "C:/WorkSpace/temp"
 ziplist = os.listdir(dataPath)
 pattern = re.compile(".*StnDet.*\.txt")

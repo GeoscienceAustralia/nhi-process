@@ -8,6 +8,7 @@ from os.path import join as pjoin
 from datetime import datetime, timedelta
 from configparser import ConfigParser, ExtendedInterpolation
 import pandas as pd
+import numpy as np
 
 from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit
 from files import flStartLog, flGetStat
@@ -156,24 +157,44 @@ def processFile(filename: str, outputDir: str) -> bool:
             stnNum = int(m.group(1))
             stnState = stnlist.loc[stnlist.stnNum==stnNum, 'stnState'].values[0]
             LOGGER.debug(f"Station number: {stnNum} ({stnState})")
+            fileinfo = zz.getinfo(f)
+            if fileinfo.file_size == 0:
+                LOGGER.warn(f"Zero-sized file: {f}")
+                continue
             with zz.open(f) as fh:
-                dfmax = extractDailyMax(fh, stnState)
-                LOGGER.info(f"Writing data to {pjoin(outputDir, f)}")
-                dfmax.to_csv(pjoin(outputDir, f), index=False)
+                dfmax, dfmean = extractDailyMax(fh, stnState)
+                if dfmax is None:
+                    LOGGER.warning(f"No data returned for {f}")
+                else:
+                    LOGGER.info(f"Writing data to {pjoin(outputDir, f)}")
+                    dfmax.to_csv(pjoin(outputDir, 'dailymax', f), index=False)
+                    dfmean.to_csv(pjoin(outputDir, 'dailymean', f), float_format="%.3f") # Date is the index
         rc = True
     else:
-        LOGGER.warn(f"{filename} is not a zip file")
+        LOGGER.warning(f"{filename} is not a zip file")
         rc = False
     return rc
 
 def getStationList(stnfile: str) -> pd.DataFrame:
+    """
+    Extract a list of stations from a station file
+
+    :param str stnfile: Path to a station file
+
+    :returns: :class:`pd.DataFrame`
+    """
     LOGGER.debug(f"Retrieving list of stations from {stnfile}")
     colnames = ["id", 'stnNum', 'rainfalldist', 'stnName', 'stnOpen', 'stnClose',
             'stnLat', 'stnLon', 'stnLoc', 'stnState', 'stnElev', 'stnBarmoeterElev',
             'stnWMOIndex', 'stnDataStartYear', 'stnDataEndYear',
-            'pctComplete', 'pctY', 'pctN', 'pctW', 'pctS', 'pctI']
+            'pctComplete', 'pctY', 'pctN', 'pctW', 'pctS', 'pctI', 'end']
     df = pd.read_csv(stnfile, sep=',', index_col=False, names=colnames,
-                     keep_default_na=False, converters={'stnState': str.strip})
+                     keep_default_na=False, 
+                     converters={
+                         'stnName': str.strip,
+                         'stnState': str.strip
+                         })
+    LOGGER.debug(f"There are {len(df)} stations")
     return df
 
 def extractDailyMax(filename, stnState, variable='windgust'):
@@ -187,6 +208,8 @@ def extractDailyMax(filename, stnState, variable='windgust'):
     :returns: `pandas.DataFrame`
 
     """
+    """
+    # 2021 version:
     names = ['id', 'stnNum',
              'YYYY', 'MM', 'DD', 'HH', 'MI',
              'YYYYl', 'MMl', 'DDl', 'HHl', 'MIl',
@@ -208,12 +231,57 @@ def extractDailyMax(filename, stnState, variable='windgust'):
               'windgust': float, 'windgustq': str,
               'mslp':float, 'mslpq':str,
               'stnp': float, 'stnpq': str, 'end': str}
+    """
+    # 2022 version
+    names = ['id', 'stnNum',
+             'YYYY', 'MM', 'DD', 'HH', 'MI',
+             'YYYYl', 'MMl', 'DDl', 'HHl', 'MIl',
+             'rainfall', 'rainq', 'rain_duration',
+             'temp', 'tempq',
+             'temp1max', 'temp1maxq',
+             'temp1min', 'temp1minq',
+             'wbtemp', 'wbtempq',
+             'dewpoint', 'dewpointq',
+             'rh', 'rhq',
+             'windspd', 'windspdq',
+             'windmin', 'windminq',
+             'winddir', 'winddirq',
+             'windsd', 'windsdq',
+             'windgust', 'windgustq',
+             'mslp', 'mslpq', 'stnp', 'stnpq',
+             'end']
+    dtypes = {'id': str, 'stnNum': int,
+              'YYYY': int, "MM": int, "DD": int, "HH": int, "MI": int,
+              'YYYYl': int, "MMl": int, "DDl": int, "HHl": int, "MIl": int,
+              'rainfall': float, 'rainq': str, 'rain_duration': float,
+              'temp': float, 'tempq': str,
+              'temp1max': float, 'temp1maxq': str,
+              'temp1min': float, 'temp1minq': str,
+              'wbtemp': float, 'wbtempq': str,
+              'dewpoint': float, 'dewpointq': str,
+              'rh':float, 'rhq':str,
+              'windspd':float, 'windspdq':str,
+              'windmin': float, 'windminq': str,
+              'winddir': float, 'winddirq': str,
+              'windsd':float, 'windsdq':str,
+              'windgust': float, 'windgustq': str,
+              'mslp':float, 'mslpq':str,
+              'stnp': float, 'stnpq': str, 'end': str}
     LOGGER.debug(f"Reading station data from {filename}")
-    df = pd.read_csv(filename, sep=',', index_col=False, dtype=dtypes,
-                     names=names, header=0,
-                     parse_dates={'datetime':[7, 8, 9, 10, 11]},
-                     na_values=['####'],
-                     skipinitialspace=True)
+    try:
+        df = pd.read_csv(filename, sep=',', index_col=False, dtype=dtypes,
+                        names=names, header=0,
+                        parse_dates={'datetime':[7, 8, 9, 10, 11]},
+                        na_values=['####'],
+                        skipinitialspace=True)
+    except Exception as err:
+        LOGGER.exception(f"Cannot load data from {filename}: {err}")
+        return None, None
+    LOGGER.debug("Filtering on quality flags")
+    for var in ['temp', 'temp1max', 'temp1min', 'wbtemp', 
+                'dewpoint', 'rh', 'windspd', 'windmin',
+                'winddir', 'windsd', 'windgust', 'mslp', 'stnp']:
+        df.loc[~df[f"{var}q"].isin(['Y']), [var]] = np.nan
 
     # Hacky way to convert from local standard time to UTC:
     df['datetime'] = pd.to_datetime(df.datetime, format="%Y %m %d %H %M")
@@ -222,7 +290,18 @@ def extractDailyMax(filename, stnState, variable='windgust'):
     df['date'] = df.datetime.dt.date
     LOGGER.debug("Determining daily maximum wind speed record")
     dfmax = df.loc[df.groupby(['date'])[variable].idxmax().dropna()]
-    return dfmax
+    LOGGER.debug("Determining daily mean values")
+    dfstats = df.groupby(['date']).aggregate({
+        variable: ['mean', 'std', 'max'],
+        'windspd': ['mean', 'std', 'max'],
+        'temp': ['mean', 'min', 'max'],
+        'temp1max': ['max'],
+        'temp1min': ['min'],
+        'wbtemp': ['mean', 'max'], 
+        'dewpoint': ['mean', 'max']})
+    dfstats.columns = dfstats.columns.map('_'.join)
+    
+    return dfmax, dfstats
 
 def dt(*args):
     """
