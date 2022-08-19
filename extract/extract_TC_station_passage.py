@@ -3,19 +3,15 @@ extract_TC_station_passage.py - find all TCs that pass within a defined distance
 of a weather station
 
 """
-
 import os
 import logging
-from os.path import join as pjoin
-import numpy as np
 import pandas as pd
 import geopandas as gpd
 
 import matplotlib.pyplot as plt
 from shapely.geometry import LineString, Point, Polygon
 from shapely.geometry import box as sbox
-
-from Utilities import track
+from vincenty import vincenty
 
 logger = logging.getLogger()
 
@@ -122,15 +118,46 @@ def load_stations(stationfile: str, dist: float) -> gpd.GeoDataFrame:
                            geometry=gpd.points_from_xy(
                                df.stnLon, df.stnLat, crs="EPSG:7844").buffer(dist)
                            )
-    #gdf['geometry'] = gdf.buffer(dist)
     return gdf
 
+def load_obs_data(stationFile: str) -> pd.DataFrame:
+    logger.info(f"Loading {stationFile}")
+    colnames = ["dc","stnNum","Year","Month","Day",
+                "gust","gust_q","direction","direction_q","time","time_q",
+                "preswx00","Qpreswx00","preswx03","Qpreswx03","preswx06","Qpreswx06",
+                "preswx09","Qpreswx09","preswx12","Qpreswx12","preswx15","Qpreswx15",
+                "preswx18","Qpreswx18","preswx21","Qpreswx21","pastwx00","Qpastwx00",
+                "pastwx03","Qpastwx03","pastwx06","Qpastwx06","pastwx09","Qpastwx09",
+                "pastwx12","Qpastwx12","pastwx15","Qpastwx15","pastwx18","Qpastwx18",
+                "pastwx21","Qpastwx21","Null"]
 
-stationFile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2019\Daily\DC02D_StnDet_999999999632559.txt"
+    df = pd.read_csv(stationFile, names=colnames, sep=",", index_col=False, header=0, parse_dates={'datetime':[2, 3, 4, 9]})
+    return df
+
+stationPath = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2019\Daily"
+stationFile = os.path.join(stationPath, "DC02D_StnDet_999999999632559.txt")
 trackFile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\tc\Objective Tropical Cyclone Reanalysis - QC.csv"
 
+
 tracks = load_obs_tracks(trackFile)
-stations = load_stations(stationFile, 3)
+stations = load_stations(stationFile, 2)
 
 selected = gpd.overlay(tracks, stations.to_crs(tracks.crs), how='intersection')
-import pdb; pdb.set_trace()
+
+selected['cpa'] = selected.apply(lambda x: vincenty((x['lat'], x['lon']), (x['stnLat'], x['stnLon'])), axis=1) 
+# Closest point of approach (CPA)
+stncpa = selected.loc[selected.groupby(['stnNum', 'num']).cpa.idxmin()]
+stncpa = stncpa.loc[stncpa.cpa < 250.]
+stncpa.drop('geometry', axis=1, inplace=True)
+stncpa.to_csv(r"X:\georisk\HaRIA_B_Wind\data\derived\tcobs\stncpa.csv", index=False)
+
+stngroup = stncpa.groupby('stnNum')
+
+for stnNum, group in stngroup:
+    dataFile = os.path.join(stationPath, f"DC02D_Data_{stnNum:06d}_999999999632559.txt")
+    obsData = load_obs_data(dataFile)
+    obsData.set_index('datetime', inplace=True, drop=False)
+    for idx, tc in group.iterrows():
+        obs = obsData.iloc[obsData.index.get_loc(tc.datetime, method='nearest')]
+        if obs.gust is not None:
+            print(stnNum, obs.datetime, obs.gust, tc.datetime, tc.NAME, tc.cpa)
