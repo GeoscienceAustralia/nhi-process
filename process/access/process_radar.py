@@ -1,6 +1,5 @@
 
 import sys
-import logging
 import argparse
 from configparser import ConfigParser, ExtendedInterpolation
 from itertools import filterfalse
@@ -10,6 +9,8 @@ from files import flStartLog, flProgramVersion
 
 import xarray as xr
 import cfgrib
+import imageio.v2 as imageio
+
 
 from plotting import radar
 
@@ -159,6 +160,19 @@ def main(config):
         outds = xr.Dataset({"radar": tds.max_radar_refl_1km.max(axis=0)},
                            attrs=tds.attrs)
         outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
+
+    imglist = []
+    for fp in range(37):
+        timestr = f"{fp:03d}"
+        LOGGER.info(f"Processing forecast time +{timestr} hours")
+        filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{timestr}.surface.grb2")
+        tds = cfgrib.open_datasets(filename)
+        max1kmds = tds[1]
+        outputfile = pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{timestr}.png")
+        radar(max1kmds, fp, outputfile, metadata={"history": provmsg})
+        imglist.append(imageio.imread(outputfile))
+
+    imageio.mimwrite(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.gif"), imglist, fps=5)
 
 def processFiles(filelist):
     """

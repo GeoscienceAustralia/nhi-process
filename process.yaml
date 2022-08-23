@@ -1,0 +1,28 @@
+name: process
+channels:
+  - conda-forge
+  - defaults
+  - bioconda
+dependencies:
+  - python=3.9
+  - gitpython
+  - pydap
+  - cfgrib
+  - netcdf4
+  - pysftp
+  - tendo
+  - cartopy
+  - dask
+  - seaborn
+  - pycodestyle
+  - pylint
+  - geopandas
+  - rasterio
+  - imageio
+  - lxml
+  - pint
+  - statsmodels
+  - pyopenssl
+  - cryptography
+  - jupyterlab
+prefix: C:\W10Dev\Anaconda3\envs\process

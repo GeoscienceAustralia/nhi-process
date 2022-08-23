@@ -1,19 +1,15 @@
-import os
 import sys
-import glob
-import logging
 import argparse
 from configparser import ConfigParser, ExtendedInterpolation
 from itertools import filterfalse
-from os.path import join as pjoin, isfile, dirname, basename, splitext, realpath
+from os.path import join as pjoin, isfile, dirname, basename
 from datetime import datetime, timedelta
 from plotting import windgust
 
 from files import flStartLog, flProgramVersion
 
 import xarray as xr
-import pandas as pd
-import numpy as np
+import imageio.v2 as imageio
 
 global LOGGER
 DATETIMEFMT = "%Y%m%d%H"
@@ -161,7 +157,18 @@ def main(config):
         windgust(tda, rng[1]-1, 
                  pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{fp}.png"),
                  metadata={"history":provmsg})
+    imglist = []
+    for fp in range(37):
+        timestr = f"{fp:03d}"
+        LOGGER.info(f"Processing forecast time +{timestr} hours")
+        filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{timestr}.surface.nc4")
+        tds = xr.open_dataset(filename)
+        tda = tds.wndgust10m
+        outputfile = pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{timestr}.png")
+        windgust(tda, fp, outputfile, metadata={"history": provmsg})
+        imglist.append(imageio.imread(outputfile))
 
+    imageio.mimwrite(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.gif"), imglist, fps=5)
 
 def processArchiveFile(config):
     """
