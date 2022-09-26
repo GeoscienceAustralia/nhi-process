@@ -189,7 +189,7 @@ def load_obs_data(stationFile: str, stnState: str) -> pd.DataFrame:
     # DLS times - would be somewhat complex to determine, since some states
     # actually went thru periods of having DLS, but typically don't!
     df['datetime'] = df.datetime - timedelta(hours=TZ[stnState])
-    # Drop rows with no gust observation 
+    # Drop rows with no gust observation
     df = df[~df.gust.isna()]
     return df
 
@@ -227,7 +227,7 @@ def calculateCPA(stationFile: str, trackFile: str, trackFormat: str) -> pd.DataF
 
 def extractObs(cpadf: pd.DataFrame, stations: pd.DataFrame) -> pd.DataFrame:
     outdf = pd.DataFrame(columns=['stnNum', 'stnName', 'dtObs', 'gust', 'gustq',
-                                  'direction', 'dtTC', 'TCName',
+                                  'direction', 'dtTC', 'TCName', 'TCIDnum',
                                   'TCCPA'])
     cpagroup = cpadf.groupby('stnNum')
     for stnNum, group in cpagroup:
@@ -271,8 +271,8 @@ def extractObs(cpadf: pd.DataFrame, stations: pd.DataFrame) -> pd.DataFrame:
                 print(stnNum, obs.datetime, obs.gust,
                       obs.direction, tc.datetime, tc.NAME, tc.cpa)
                 outdf = outdf.append(
-                    pd.DataFrame([[stnNum, stnName, obs.datetime, obs.gust, obs.gust_q, obs.direction, tc.datetime, tc.NAME, tc.cpa]],
-                                 columns=['stnNum', 'stnName', 'dtObs', 'gust', 'gustq', 'direction', 'dtTC', 'TCName', 'TCCPA']),
+                    pd.DataFrame([[stnNum, stnName, obs.datetime, obs.gust, obs.gust_q, obs.direction, tc.datetime, tc.NAME, tc.num, tc.cpa]],
+                                 columns=['stnNum', 'stnName', 'dtObs', 'gust', 'gustq', 'direction', 'dtTC', 'TCName', 'TCIDnum', 'TCCPA']),
                     ignore_index=True)
     return outdf
 
@@ -295,5 +295,6 @@ outdf.to_csv(
 for stnNum, obs in outdf.groupby('stnNum'):
     if len(obs) > 10:
         print(stnNum, stations.loc[stnNum, 'stnName'], len(obs))
+        obs.to_csv(os.path.join(r"X:\georisk\HaRIA_B_Wind\data\derived\tcobs", f"tcobs_{stnNum:06d}.csv"), index=False)
 
 
