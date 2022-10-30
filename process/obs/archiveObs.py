@@ -91,6 +91,7 @@ def mainLoop(config):
 
     ListAllFiles(config)
     processFiles(config)
+    LOGGER.info("Completed")
 
 def expandFileSpec(config, spec, category):
     """
