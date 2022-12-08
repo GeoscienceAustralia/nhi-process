@@ -14,15 +14,26 @@ get IDD20021.txt
 get IDD20023.txt
 get IDD20024.txt
 
+get IDD65443.json
+get IDD65444.json
+
 # QLD:
 get IDQ20071.txt
 get IDQ20072.txt
 get IDQ20073.txt
 get IDQ20018.txt
 
+get IDQ65355.json
+get IDQ65356.json
+get IDQ65357.json
+
 # WA:
 get IDW27600.txt
 get IDW27700.txt
 get IDW27800.txt
+
+get IDW65350.json
+get IDW65351.json
+get IDW65352.json
 
 quit
