@@ -1,7 +1,14 @@
 """
+Fetch data from the NHIRS WFS and store in an archive file geodatabase.
+
+The destination geodatabase and feature class are defined in a configuration
+file, along with the layers to retrieve.
 
 Run the following command at the command prompt to activate the ArcGIS Pro Python environment:
-C:\Windows\System32\cmd.exe /k "C:\Program Files\ArcGIS\Pro\bin\Python\Scripts\proenv.bat"
+
+set CONDA_NEW_ENV=arcgispro-py3
+CALL "C:\Program Files\ArcGIS\Pro\bin\Python\Scripts\activate.bat" "%CONDA_NEW_ENV%"
+
 
 """
 
@@ -10,7 +17,6 @@ import sys
 import arcpy
 import logging
 import argparse
-from os.path import join as pjoin, isfile, dirname, basename
 
 from dtutils import currentCycle
 from configparser import ConfigParser, ExtendedInterpolation
@@ -64,15 +70,15 @@ def main(config):
         if alreadyProcessed(destination, outname):
             LOGGER.info(f"{outname} already exists in {destination} - have you already fetched this data?")
             continue
-
+        LOGGER.info(f"Retrieving layer {idx} of {len(layers)} layers")
         try:
             arcpy.conversion.WFSToFeatureClass(sourceWFS, layername, temppath, outname, max_features=maxfeatures)
         except:
             msgs = arcpy.GetMessages()
             LOGGER.error(msgs)
         else:
-            nfeatures = arcpy.GetCount_management(outname)
-            LOGGER.info(f"Retrieved {nfeatures} features from WFS")
+            #nfeatures = arcpy.GetCount_management(outname)
+            LOGGER.info(f"Retrieved {outname} features from WFS")
 
         infeatures = f"{temppath}/{outname}"
         arcpy.env.workspace = destination
@@ -102,7 +108,6 @@ def start():
     p = argparse.ArgumentParser()
 
     p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-a', '--archive', help="Archive file processing", action='store_true')
     p.add_argument('-v', '--verbose',
                    help="Verbose output",
                    action='store_true')
@@ -140,9 +145,11 @@ def start():
             '%H:%M:%S', )
         console.setFormatter(formatter)
         LOGGER.addHandler(console)
-    LOGGER.info(f'Started log file {logFile} (detail level {logLevel})')
     LOGGER.info(f'Running {sys.argv[0]} (pid {os.getpid()})')
+    LOGGER.info(f'Started log file {logFile} (detail level {logLevel})')
     main(config)
+
+    LOGGER.info("Completed")
 
 
 
