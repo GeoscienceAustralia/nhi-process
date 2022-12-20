@@ -45,17 +45,24 @@ def alreadyProcessed(workspace, layername):
 
 
 def main(config):
+    """
+    Main processing loop to retrieve NHIRS data from WFS
 
-    fcast_time = currentCycle(delay=3)
-    fcast_time_str = fcast_time.strftime(DATETIMEFMT)
-    LOGGER.debug(f"Forecast time string: {fcast_time_str}")
+    :param config: :class:`ConfigParser` object containing configuration options
+
+    """
+
 
     maxfeatures = config.get('Defaults', 'MaxFeatures', fallback=30000)
     sourceWFS = config.get('Defaults', 'Source')
     destGDB = config.get('Defaults', 'Geodatabase')
     featureClass = config.get('Domain', 'FeatureClass')
+    delay = config.getint('Domain', 'Delay', fallback=3)
     destination = f"{destGDB}/{featureClass}"
+    fcast_time = currentCycle(delay=delay)
+    fcast_time_str = fcast_time.strftime(DATETIMEFMT)
 
+    LOGGER.debug(f"Forecast time string: {fcast_time_str}")
     LOGGER.info(f"Retrieving data from {sourceWFS}")
     LOGGER.info(f"Data will be stored at {destination}")
     layers = config.items('Layers')

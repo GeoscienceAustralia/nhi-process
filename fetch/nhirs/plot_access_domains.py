@@ -4,7 +4,7 @@ services and create a map of the data published through the service.
 
 We access the NHIRS ACCESS-IM data, and plot the spatial extent of the ACCESS-C
 domains. We retrieve the exposure report layer, and can access the attributes in
-the layer via the columns of the `data` `GeoDtaFrame`. 
+the layer via the columns of the `data` `GeoDtaFrame`.
 """
 
 from owslib.wfs import WebFeatureService
@@ -62,4 +62,3 @@ plt.text(1.0, -0.1, f"Created: {datetime.now():%Y-%m-%d %H:%M}",
 plt.tight_layout()
 plt.savefig("C:/outgoing/process/access/access_domains.png",
             bbox_inches='tight')
-
