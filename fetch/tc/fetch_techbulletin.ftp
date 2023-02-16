@@ -8,6 +8,8 @@ login
 
 cd /anon/gen/fwo
 
+ascii
+
 # NT:
 get IDD20020.txt
 get IDD20021.txt
