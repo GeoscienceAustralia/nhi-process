@@ -2,13 +2,24 @@
 extract_TC_station_passage.py - find all TCs that pass within a defined distance
 of a weather station
 
-We first calculate the closest point of approach (CPA) between a weather station location and each TC track. For all records where the TC passes within 2 degrees of the station, we store the date/time of the passage and the distance of the CPA.
+We first calculate the closest point of approach (CPA) between a weather
+station location and each TC track. For all records where the TC passes within
+2 degrees of the station, we store the date/time of the passage and the
+distance of the CPA.
 
-For each station, we then load the daily maximum wind gust observations, and extract the observations closest to the date/time of CPA, plus the observations from one day prior and one day after. We then take the maximum of those observaations and assign that value to the cyclone event.
+For each station, we then load the daily maximum wind gust observations, and
+extract the observations closest to the date/time of CPA, plus the observations
+from one day prior and one day after. We then take the maximum of those
+observaations and assign that value to the cyclone event.
 
-We check the observations for the day prior and after to ensure we capture the maximum gust from the cyclone. It is possible that the CPA occurs on one day, but the strongest gust may be on the next day
+We check the observations for the day prior and after to ensure we capture the
+maximum gust from the cyclone. It is possible that the CPA occurs on one day,
+but the strongest gust may be on the next day
 
-NOTE: The wind speed observations are in m/s, but appear to be converted from the original recording units of knots, then rounded to 1 decimal place. This causes an element of anomalous clustering around specific values in the data recorded in the files.
+NOTE: The wind speed observations are in m/s, but appear to be converted from
+the original recording units of knots, then rounded to 1 decimal place. This
+causes an element of anomalous clustering around specific values in the data
+recorded in the files.
 
 """
 import os
@@ -82,7 +93,8 @@ def load_obs_tracks(trackfile: str, format: str) -> gpd.GeoDataFrame:
         dtypes = [str, str, str, float, float, float, float, float]
 
         df = pd.read_csv(trackfile, usecols=usecols,
-                         dtype=dict(zip(colnames, dtypes)), na_values=[' '], nrows=13743)
+                         dtype=dict(zip(colnames, dtypes)),
+                         na_values=[' '], nrows=13743)
         colrenames = {'DISTURBANCE_ID': 'num',
                       'TM': 'datetime',
                       'LON': 'lon', 'LAT': 'lat',
@@ -95,8 +107,10 @@ def load_obs_tracks(trackfile: str, format: str) -> gpd.GeoDataFrame:
         colnames = ['NAME', 'num', 'datetime',
                     'lat', 'lon', 'pmin', 'poci', 'vmax']
         dtypes = [str, str, str, float, float, float, float, float]
-        df = pd.read_csv(trackfile, usecols=usecols, header=0, skiprows=5, names=colnames,
-                         dtype=dict(zip(colnames, dtypes)), na_values=[' '],)
+        df = pd.read_csv(trackfile, usecols=usecols, header=0, skiprows=5,
+                         names=colnames,
+                         dtype=dict(zip(colnames, dtypes)),
+                         na_values=[' '],)
 
     df['datetime'] = pd.to_datetime(
         df.datetime, format="%Y-%m-%d %H:%M", errors='coerce')
@@ -146,7 +160,8 @@ def load_stations(stationfile: str, dist: float) -> gpd.GeoDataFrame:
                      header=0)
     gdf = gpd.GeoDataFrame(df,
                            geometry=gpd.points_from_xy(
-                               df.stnLon, df.stnLat, crs="EPSG:7844").buffer(dist)
+                               df.stnLon, df.stnLat,
+                               crs="EPSG:7844").buffer(dist)
                            )
     gdf.set_index('stnNum', drop=False, inplace=True)
     return gdf
