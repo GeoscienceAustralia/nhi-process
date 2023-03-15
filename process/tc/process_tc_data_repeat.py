@@ -51,7 +51,7 @@ def start():
     p = argparse.ArgumentParser()
 
     p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-v', '--verbose', help="Verbose output", 
+    p.add_argument('-v', '--verbose', help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -143,13 +143,16 @@ def processFiles(config):
             fileNum = 0
             originDir = config.get(category, 'OriginDir', fallback=defaultOriginDir)
             action = config.get(category, 'Action')
-            cutoff_delta = config.get(category, 'CutOffDelta', fallback=defaultCutOffDelta)
-            cutofftime = getCutoffTime(cutoff_delta)
+            cutoffDelta = config.getfloat(category, 'CutOffDelta', fallback=defaultCutOffDelta)
+            LOGGER.debug(f"Cut-off delta: {cutoffDelta} hours")
+            cutoffDate = datetime.now() - timedelta(cutoffDelta/24)
+            LOGGER.debug(f"Cutoff time: {cutoffDate}")
             cutoff_num = config.getint(category, 'NumFiles', fallback=1)
         for file in g_files[category]:
-            fdate = flModDate(file, dateformat=None)
-            if fdate < cutofftime:
+            fileDate = flModDate(file, dateformat=None)
+            if fileDate < cutoffDate:
                 LOGGER.debug(f"{file} is too old")
+                LOGGER.debug(f"{fileDate.strftime('%Y-%m-%d %H:%M')} < {cutoffDate.strftime('%Y-%m-%d %H:%M')}")
                 continue
             fileNum += 1
         if fileNum >= cutoff_num:
@@ -176,7 +179,7 @@ def mainLoop(config):
     """
     Main processing loop. All required settings are read from the
     :class:`configparser.ConfigParser` object. This initiates a continuous loop
-    that sleeps for a defined interval between running actions. 
+    that sleeps for a defined interval between running actions.
 
     :param config: A :class:`configparser.ConfigParser` object
     """
@@ -207,12 +210,12 @@ def mainLoop(config):
 
 def expandFileSpec(config, spec, category):
     """
-    Given a file specification and a category, list all files that match the spec and add them to the :dict:`g_files` dict. 
-    The `category` variable corresponds to a section in the configuration file that includes an item called 'OriginDir'. 
-    The given `spec` is joined to the `category`'s 'OriginDir' and all matching files are stored in a list in 
+    Given a file specification and a category, list all files that match the spec and add them to the :dict:`g_files` dict.
+    The `category` variable corresponds to a section in the configuration file that includes an item called 'OriginDir'.
+    The given `spec` is joined to the `category`'s 'OriginDir' and all matching files are stored in a list in
     :dict:`g_files` under the `category` key.
-    
-    :param config: `ConfigParser` object 
+
+    :param config: `ConfigParser` object
     :param str spec: A file specification. e.g. '*.*' or 'IDW27*.txt'
     :param str category: A category that has a section in the source configuration file
     """

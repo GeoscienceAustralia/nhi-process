@@ -13,7 +13,7 @@ import pandas as pd
 
 from pycxml.pycxml import loadfile
 
-from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit
+from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit, pArchiveTimestamp
 from files import flStartLog, flGetStat, flModDate
 from dtutils import getCutoffTime
 from tendo import singleton
@@ -30,7 +30,7 @@ def start():
 
     p = argparse.ArgumentParser()
     p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-v', '--verbose', help="Verbose output", 
+    p.add_argument('-v', '--verbose', help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -59,6 +59,7 @@ def start():
         verbose = True
 
     pInit(configFile)
+    pArchiveTimestamp(config.getboolean('Files', 'ArchiveTimestamp'))
     main(config, verbose)
 
 def ListAllFiles(config):
@@ -85,12 +86,12 @@ def cnfRefreshCachedIniFile(configFile):
 
 def expandFileSpec(config, spec, category):
     """
-    Given a file specification and a category, list all files that match the spec and add them to the :dict:`g_files` dict. 
-    The `category` variable corresponds to a section in the configuration file that includes an item called 'OriginDir'. 
-    The given `spec` is joined to the `category`'s 'OriginDir' and all matching files are stored in a list in 
+    Given a file specification and a category, list all files that match the spec and add them to the :dict:`g_files` dict.
+    The `category` variable corresponds to a section in the configuration file that includes an item called 'OriginDir'.
+    The given `spec` is joined to the `category`'s 'OriginDir' and all matching files are stored in a list in
     :dict:`g_files` under the `category` key.
-    
-    :param config: `ConfigParser` object 
+
+    :param config: `ConfigParser` object
     :param str spec: A file specification. e.g. '*.*' or 'IDW27*.txt'
     :param str category: A category that has a section in the source configuration file
     """
@@ -147,9 +148,9 @@ def processFiles(config):
 
         directory, fname, md5sum, moddate = flGetStat(f)
         cutOffDelta = config.get(category, 'CutOffDelta', fallback=defaultCutOffDelta)
-        cutofftime = getCutoffTime(cutOffDelta)
-        LOGGER.debug(f"Cutoff time is: {cutofftime}")
-        if fdate < cutofftime:
+        cutOffDate = dt.utcnow() - timedelta(hours=cutOffDelta)
+        LOGGER.debug(f"Cutoff time is: {cutOffDate}"))
+        if fdate < cutOffDate:
             LOGGER.info(f"{f} is too old (> {cutOffDelta} hours old). Skipping")
             continue
         if pAlreadyProcessed(directory, fname, "md5sum", md5sum):
@@ -192,22 +193,22 @@ def processTimes(validTime, issueTime):
     Calculate the actual valid time, if the issue time is recently after 00 UTC
     For example, if the issue time is 00:30 UTC, and the valid time is something like
     22:00 UTC, then we need to set the valid date back one day relative to the issue date.
-    
+
     :param validTime: a :class:`datetime.time` instance that represents the time the data in the bulletin refers to
     :param issueTime: a :class:`datetime.datetime` instance that represents when the bulletin was issued
-    
+
     :returns: a new :class:`datetime.datetime` instance for the valid time of the bulletin
     """
     if issueTime.hour == 0 & validTime.hour >=22:
         validDate = issueTime.date() - timedelta(days=1)
-    else: 
+    else:
         validDate = issueTime.date()
     return dt.combine(validDate, validTime.time())
 
 def processFile(filename, outputDir):
     """
     Parse an xml file to extract required data to form a track file
-    
+
     :param str filename: Path to a file to process
     """
 
@@ -239,7 +240,7 @@ def processFile(filename, outputDir):
 
     tc_info = {}
     tc_fcast = pd.DataFrame(columns=['tau', 'datetime', 'lat', 'lon', 'pressure', 'rmax', 'poci'])
-    
+
     with open(filename) as fh:
         for line in fh:
             idnum_match = re.match(idnum_regex, line)
@@ -259,7 +260,7 @@ def processFile(filename, outputDir):
             init_rmax_match = init_rmax_regex.match(line)
             fcast_match = fcast_regex.match(line)
             poci_match = poci_regex.match(line)
-            
+
             if idnum_match:
                 tc_info['id_num'] = idnum_match.group(1)
                 LOGGER.debug(tc_info['id_num'])

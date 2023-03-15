@@ -12,7 +12,7 @@ from os.path import join as pjoin, realpath, isdir, dirname, splitext
 
 import pandas as pd
 
-from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit
+from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit, pArchiveTimestamp
 from files import flStartLog, flGetStat
 from tendo import singleton
 
@@ -57,6 +57,7 @@ def start():
         verbose = True
 
     pInit(configFile)
+    pArchiveTimestamp(config.getboolean('Preferences', 'ArchiveTimestamp'))
     main(config, verbose)
 
 def ListAllFiles(config):
