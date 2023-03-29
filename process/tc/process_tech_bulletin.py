@@ -57,7 +57,8 @@ def start():
         verbose = True
 
     pInit(configFile)
-    pArchiveTimestamp(config.getboolean('Preferences', 'ArchiveTimestamp'))
+    pArchiveTimestamp(config.getboolean(
+        'Preferences', 'ArchiveTimestamp', fallback=True))
     main(config, verbose)
 
 def ListAllFiles(config):
@@ -211,7 +212,7 @@ def processFile(filename, outputDir):
     valid_time_regex = re.compile(r'^Data At\:\s*(\d*)(?:\s+)(\w{3})')
     lat_regex = re.compile(r'^Latitude\:\s*(\d+\.\d)(\w)')
     lon_regex = re.compile(r'^Longitude\:\s*(\d+\.\d)(\w)')
-    loc_regex = re.compile(r'^Location.*\:\s\w*\s(\d{1,})\s(\w+)\s+(?:\(|\[)(\d+)\s(\w+)(?:\)|\])')
+    loc_regex = re.compile(r'^Location.*\:\s\w*\s(\d{1,})\s*(\w+)\s+(?:\(|\[)(\d+)\s(\w+)(?:\)|\])')
     init_dir_regex = re.compile(r'^Movement Towards\:\s*(.*)(?:\(|\[)(\d+)(.+)(?:\)|\])')
     init_speed_regex = re.compile(r'^Speed of Movement\:\s+(\d+)\s+(\w*)\s+(?:\(|\[)(\d*)\s(.*)(?:\)|\])')
     init_pcentre_regex = re.compile(r'^Central Pressure\:\s*(\d*)\s*(\w*)')

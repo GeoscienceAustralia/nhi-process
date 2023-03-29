@@ -147,9 +147,9 @@ def processFiles(config):
         fdate = flModDate(f, dateformat=None)
 
         directory, fname, md5sum, moddate = flGetStat(f)
-        cutOffDelta = config.get(category, 'CutOffDelta', fallback=defaultCutOffDelta)
+        cutOffDelta = config.getint(category, 'CutOffDelta', fallback=defaultCutOffDelta)
         cutOffDate = dt.utcnow() - timedelta(hours=cutOffDelta)
-        LOGGER.debug(f"Cutoff time is: {cutOffDate}"))
+        LOGGER.debug(f"Cutoff time is: {cutOffDate}")
         if fdate < cutOffDate:
             LOGGER.info(f"{f} is too old (> {cutOffDelta} hours old). Skipping")
             continue
