@@ -1,7 +1,6 @@
 import os
 import re
 import glob
-import zipfile
 import argparse
 import logging
 from os.path import join as pjoin
@@ -9,12 +8,21 @@ from datetime import datetime, timedelta
 from configparser import ConfigParser, ExtendedInterpolation
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import warnings
 
 from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit
-from files import flStartLog, flGetStat
+from files import flStartLog, flGetStat, flSize
+
+warnings.simplefilter('ignore', RuntimeWarning)
+pd.set_option('mode.chained_assignment', None)
+sns.set_style('whitegrid')
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger()
-
 PATTERN = re.compile(r".*Data_(\d{6}).*\.txt")
 STNFILE = re.compile(r".*StnDet.*\.txt")
 TZ = {"QLD":10, "NSW":10, "VIC":10,
@@ -58,8 +66,55 @@ def main(config, verbose=False):
     LOGGER = flStartLog(logfile, loglevel, verbose, datestamp)
 
     ListAllFiles(config)
+    processStationFiles(config)
     processFiles(config)
 
+# This is for tracking down memory leaks:
+"""
+def display_top(snapshot, key_type='lineno', limit=10):
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
+
+    LOGGER.info("Top %s lines" % limit)
+    for index, stat in enumerate(top_stats[:limit], 1):
+        breakpoint()
+        frame = stat.traceback[0]
+        # replace "/path/to/module/file.py" with "module/file.py"
+        filename = os.sep.join(frame.filename.split(os.sep)[-2:])
+        LOGGER.info("#%s: %s:%s: %.1f KiB"
+              % (index, filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            LOGGER.info('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        LOGGER.info("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    LOGGER.info("Total allocated size: %.1f KiB" % (total / 1024))
+
+def printHeap():
+    '''
+    Print a report on the memory use of objects
+    '''
+    thestats = THEHEAP.heapu()
+    LOGGER.info(f"Total objects: {thestats.count}")
+    LOGGER.info(f"Total size: {thestats.size} bytes")
+    LOGGER.info(f"Number of entries: {thestats.numrows}")
+    LOGGER.info("Entries:")
+    LOGGER.info("Index Count    Size    Cumulative size       Object name")
+    for row in thestats.get_rows():
+        LOGGER.info("%5d%5d%8d%8d%30s"% (row.index, row.count, row.size, row.cumulsize, row.name))
+
+    LOGGER.info("\nMeasuring Unreachable Objects From This Reference Point Onwards")
+    THEHEAP.setref()
+    LOGGER.info(THEHEAP.heapu(stat = 0))
+    # breakpoint()
+"""
 def ListAllFiles(config):
     """
     For each item in the 'Categories' section of the configuration file, load
@@ -108,6 +163,24 @@ def expandFileSpecs(config, specs, category):
     for spec in specs:
         expandFileSpec(config, spec, category)
 
+def processStationFiles(config):
+    """
+    Process all the station files to populate a global station file DataFrame
+
+    :param config: `ConfigParser` object
+    """
+
+    global g_files
+    global g_stations
+    global LOGGER
+
+    stnlist = []
+    category = 'Stations'
+    for f in g_files[category]:
+        LOGGER.info(f"Processing {f}")
+        stnlist.append(getStationList(f))
+    g_stations = pd.concat(stnlist)
+
 def processFiles(config):
     """
     Process a list of files in each category
@@ -115,17 +188,26 @@ def processFiles(config):
     global g_files
     global LOGGER
     unknownDir = config.get('Defaults', 'UnknownDir')
-    originDir = config.get('Defaults', 'OriginDir')
+    defaultOriginDir = config.get('Defaults', 'OriginDir')
     deleteWhenProcessed = config.getboolean('Files', 'DeleteWhenProcessed', fallback=False)
     archiveWhenProcessed = config.getboolean('Files', 'ArchiveWhenProcessed', fallback=True)
     outputDir = config.get('Output', 'Path', fallback=unknownDir)
-    LOGGER.debug(f"Origin directory: {originDir}")
     LOGGER.debug(f"DeleteWhenProcessed: {deleteWhenProcessed}")
     LOGGER.debug(f"Output directory: {outputDir}")
     if not os.path.exists(unknownDir):
         os.mkdir(unknownDir)
 
+    if not os.path.exists(outputDir):
+        os.mkdir(outputDir)
+        os.mkdir(pjoin(outputDir, 'dailymax'))
+        os.mkdir(pjoin(outputDir, 'dailymean'))
+        os.mkdir(pjoin(outputDir, 'plots'))
+        os.mkdir(pjoin(outputDir, 'events'))
+
     category = "Input"
+    originDir = config.get(category, 'OriginDir', fallback=defaultOriginDir)
+    LOGGER.debug(f"Origin directory: {originDir}")
+
     for f in g_files[category]:
         LOGGER.info(f"Processing {f}")
         directory, fname, md5sum, moddate = flGetStat(f)
@@ -133,7 +215,7 @@ def processFiles(config):
             LOGGER.info(f"Already processed {f}")
         else:
             if processFile(f, outputDir):
-                LOGGER.debug(f"Successfully processed {f}")
+                LOGGER.info(f"Successfully processed {f}")
                 pWriteProcessedFile(f)
                 if archiveWhenProcessed:
                     pArchiveFile(f)
@@ -143,36 +225,37 @@ def processFiles(config):
 def processFile(filename: str, outputDir: str) -> bool:
     """
     process a file and store output in the given output directory
+
+    :param str filename: path to a station data file
+    :param str outputDir: Output path for data & figures to be saved
     """
-    LOGGER.info(f"Processing {filename}")
-    if zipfile.is_zipfile(filename):
-        zz = zipfile.ZipFile(filename)
-        filelist = zz.namelist()
-        gen = (f for f in filelist if PATTERN.match(f))
-        stnfile = [f for f in filelist if STNFILE.match(f)][0]
-        stnlist = getStationList(zz.open(stnfile))
-        for f in gen:
-            LOGGER.info(f"Loading data from {f}")
-            m = PATTERN.match(f)
-            stnNum = int(m.group(1))
-            stnState = stnlist.loc[stnlist.stnNum==stnNum, 'stnState'].values[0]
-            LOGGER.debug(f"Station number: {stnNum} ({stnState})")
-            fileinfo = zz.getinfo(f)
-            if fileinfo.file_size == 0:
-                LOGGER.warn(f"Zero-sized file: {f}")
-                continue
-            with zz.open(f) as fh:
-                dfmax, dfmean = extractDailyMax(fh, stnState)
-                if dfmax is None:
-                    LOGGER.warning(f"No data returned for {f}")
-                else:
-                    LOGGER.info(f"Writing data to {pjoin(outputDir, f)}")
-                    dfmax.to_csv(pjoin(outputDir, 'dailymax', f), index=False)
-                    dfmean.to_csv(pjoin(outputDir, 'dailymean', f), float_format="%.3f") # Date is the index
-        rc = True
-    else:
-        LOGGER.warning(f"{filename} is not a zip file")
+
+    global g_stations
+
+    LOGGER.info(f"Loading data from {filename}")
+    LOGGER.debug(f"Data will be written to {outputDir}")
+    m = PATTERN.match(filename)
+    stnNum = int(m.group(1))
+    stnState = g_stations.loc[stnNum, 'stnState']
+    stnName = g_stations.loc[stnNum, 'stnName']
+    LOGGER.info(f"{stnName} - {stnNum} ({stnState})")
+    filesize = flSize(filename)
+    if filesize == 0:
+        LOGGER.warning(f"Zero-sized file: {filename}")
         rc = False
+    else:
+        basename = f"{stnNum:06d}.pkl" # os.path.basename(filename)
+        dfmax, dfmean, eventdf = extractDailyMax(filename, stnState, stnName, stnNum, outputDir)
+        if dfmax is None:
+            LOGGER.warning(f"No data returned for {filename}")
+        else:
+            LOGGER.debug(f"Writing data to {pjoin(outputDir, 'dailymax', basename)}")
+            dfmax.to_pickle(pjoin(outputDir, 'dailymax', basename))
+            dfmean.to_pickle(pjoin(outputDir, 'dailymean', basename)) # Date is the index
+            if eventdf is not None:
+                LOGGER.debug(f"Writing data to {pjoin(outputDir, 'events', basename)}")
+                eventdf.to_pickle(pjoin(outputDir, 'events', basename))
+        rc = True
     return rc
 
 def getStationList(stnfile: str) -> pd.DataFrame:
@@ -188,8 +271,8 @@ def getStationList(stnfile: str) -> pd.DataFrame:
             'stnLat', 'stnLon', 'stnLoc', 'stnState', 'stnElev', 'stnBarmoeterElev',
             'stnWMOIndex', 'stnDataStartYear', 'stnDataEndYear',
             'pctComplete', 'pctY', 'pctN', 'pctW', 'pctS', 'pctI', 'end']
-    df = pd.read_csv(stnfile, sep=',', index_col=False, names=colnames,
-                     keep_default_na=False, 
+    df = pd.read_csv(stnfile, sep=',', index_col='stnNum', names=colnames,
+                     keep_default_na=False,
                      converters={
                          'stnName': str.strip,
                          'stnState': str.strip
@@ -197,15 +280,34 @@ def getStationList(stnfile: str) -> pd.DataFrame:
     LOGGER.debug(f"There are {len(df)} stations")
     return df
 
-def extractDailyMax(filename, stnState, variable='windgust'):
+def wdir_diff(wd1, wd2):
+    """
+    Calculate change in wind direction. This always returns a positive
+    value, which is the minimum change in direction.
+
+    :param wd: array of wind direction values
+    :type wd: `np.ndarray`
+    :return: Array of changes in wind direction
+    :rtype: `np.ndarray`
+    """
+
+    diff1 = (wd1 - wd2)% 360
+    diff2 = (wd2 - wd1)% 360
+    res = np.minimum(diff1, diff2)
+    return res
+
+def extractDailyMax(filename, stnState, stnName, stnNum, outputDir, variable='windgust', threshold=90.):
     """
     Extract daily maximum value of `variable` from 1-minute observation records
     contained in `filename`
 
     :param filename: str, path object or file-like object
-    :param str variable: the variable to extract daily maximum values
+    :param stnState: str, station State (for determining local time zone)
+    :param str outputDir: Path to output directory for storing plots
+    :param str variable: the variable to extract daily maximum values - default "windgust"
+    :param float threshold: Threshold value of `variable` for additional data extraction - default 90.0
 
-    :returns: `pandas.DataFrame`
+    :returns: `pandas.DataFrame`s
 
     """
     """
@@ -278,7 +380,7 @@ def extractDailyMax(filename, stnState, variable='windgust'):
         LOGGER.exception(f"Cannot load data from {filename}: {err}")
         return None, None
     LOGGER.debug("Filtering on quality flags")
-    for var in ['temp', 'temp1max', 'temp1min', 'wbtemp', 
+    for var in ['temp', 'temp1max', 'temp1min', 'wbtemp',
                 'dewpoint', 'rh', 'windspd', 'windmin',
                 'winddir', 'windsd', 'windgust', 'mslp', 'stnp']:
         df.loc[~df[f"{var}q"].isin(['Y']), [var]] = np.nan
@@ -288,8 +390,72 @@ def extractDailyMax(filename, stnState, variable='windgust'):
     LOGGER.debug("Converting from local to UTC time")
     df['datetime'] = df.datetime - timedelta(hours=TZ[stnState])
     df['date'] = df.datetime.dt.date
+    df.set_index('datetime', inplace=True)
     LOGGER.debug("Determining daily maximum wind speed record")
     dfmax = df.loc[df.groupby(['date'])[variable].idxmax().dropna()]
+
+    dfdata = pd.DataFrame(columns=['gustratio', 'pretemp', 'posttemp',
+                                   'temprise', 'tempdrop', 'dirrate',
+                                   'prsdrop', 'prsrise'],
+                          index=dfmax.index)
+    LOGGER.debug("Calculating other obs around daily max wind gust")
+
+    frames = []
+
+    for idx in df.groupby(['date'])['windgust'].idxmax().dropna():
+        startdt = idx - timedelta(hours=1)
+        enddt = idx + timedelta(hours=1)
+        maxgust = df.loc[idx]['windgust']
+        meangust = df.loc[startdt : enddt]['windspd'].mean()
+        pretemp = df.loc[startdt : idx]['temp'].mean()
+        posttemp = df.loc[idx : enddt]['temp'].mean()
+        tempchange = (df.loc[startdt : enddt]
+                      .rolling('1800s')['temp']
+                      .apply(lambda x: x[-1] - x[0])
+                      .agg(['min', 'max']))
+        maxtempchange = tempchange['max']
+        mintempchange = tempchange['min']
+        prschange = (df.loc[startdt : enddt]
+                     .rolling('1800s')['stnp']
+                     .apply(lambda x: x[-1] - x[0])
+                     .agg(['min', 'max']))
+        prsdrop = prschange['min']
+        prsrise = prschange['max']
+        dirchange = (df.loc[startdt : enddt]
+                     .rolling('1800s')['winddir']
+                     .apply(lambda x: wdir_diff(x[-1], x[0]))
+                     .max())
+        dfdata.loc[idx] = [maxgust/meangust, pretemp, posttemp, maxtempchange,
+                           mintempchange, dirchange, prsdrop, prsrise]
+
+        if maxgust > threshold:
+            LOGGER.info(f"Extracting additional data for gust event on {datetime.strftime(idx, '%Y-%m-%d')}")
+            deltavals = df.loc[startdt : enddt].index - idx
+            gustdf = df.loc[startdt : enddt].set_index(deltavals)
+            pct = ((gustdf.isnull() | gustdf.isna()).sum() * 100 / gustdf.index.size)
+            qccols = ['windgust', 'temp', 'stnp', 'winddir']
+            if np.any(pct[qccols] > 20.0):
+                LOGGER.info("Missing values found in gust, temperature, pressure or wind direction data")
+                continue
+
+            gustdf['tempanom'] = gustdf['temp'] - gustdf['temp'].mean()
+            gustdf['stnpanom'] = gustdf['stnp'] - gustdf['stnp'].mean()
+            dirchange = (gustdf.rolling('1800s')['winddir']
+                               .apply(lambda x: wdir_diff(x[-1], x[0])))
+            gustdf['windchange'] = dirchange
+
+            x = (gustdf.index/60/1_000_000_000)
+            newdf = gustdf[['windgust', 'temp', 'tempanom', 'winddir', 'windchange',
+                            'stnp', 'stnpanom', 'rainfall']]
+            newdf['tdiff'] = x.values.astype(float)
+            newdf['date'] = datetime.strftime(idx, "%Y-%m-%d")
+            newdf['time'] = df.loc[startdt : enddt].index.values
+            #plotEvent(newdf, idx, stnName, stnNum, outputDir, filename)
+            frames.append(newdf)
+
+    LOGGER.debug("Joining other observations to daily maximum wind data")
+    dfmax = dfmax.join(dfdata)
+
     LOGGER.debug("Determining daily mean values")
     dfstats = df.groupby(['date']).aggregate({
         variable: ['mean', 'std', 'max'],
@@ -297,11 +463,91 @@ def extractDailyMax(filename, stnState, variable='windgust'):
         'temp': ['mean', 'min', 'max'],
         'temp1max': ['max'],
         'temp1min': ['min'],
-        'wbtemp': ['mean', 'max'], 
+        'wbtemp': ['mean', 'max'],
         'dewpoint': ['mean', 'max']})
     dfstats.columns = dfstats.columns.map('_'.join)
-    
-    return dfmax, dfstats
+    if len(frames) > 0:
+        eventdf = pd.concat(frames)
+        return dfmax, dfstats, eventdf
+    else:
+        return dfmax, dfstats, None
+
+def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
+              stnNum: int, outputDir: str, filename: str):
+    """
+    Plot a time history of the event, including the preceding
+    and following hour of data
+
+
+    :param df: `pd.DataFrame` containing the data
+    :param dt: `datetime` object of a gust event
+    :param str stnName: Station name
+    :param int stnNum: Station identifier
+    :param str outputDir: Output directory for data and figures
+    :param str filename: Name of the file
+    """
+
+    LOGGER.debug(f"Plotting data for {filename} on {dt.strftime('%Y-%m-%d')}")
+    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+    df.set_index('tdiff', inplace=True)
+    x = df.index # /60/1_000_000_000
+    lns1 = ax.plot(x, df['windgust'], 'ko-', markerfacecolor='white',
+                   label="Gust speed [km/h]")
+    ax2 = ax.twinx()
+    ax3 = ax.twinx()
+    ax4 = ax.twinx()
+    ax5 = ax.twinx()
+    lns2 = ax2.plot(x, df['windchange'], 'go', markersize=3,
+                    markerfacecolor='w', label='Wind direction change')
+    lns3 = ax3.plot(x, df['tempanom'], 'r', label=r"Temperature anomaly [$^{o}$C]")
+    lns4 = ax4.plot(x, df['stnpanom'], 'purple', label="Pressure anomaly [hPa]")
+    lns5 = ax5.bar(x, df['rainfall'], width=0.75, label='Rainfall [mm]', color='b', alpha=0.5)
+    ax3.spines['right'].set_position(("axes", 1.1))
+    ax4.spines['right'].set_position(("axes", 1.2))
+    ax5.spines['right'].set_position(("axes", 1.3))
+    ax2.spines[['right']].set_color(lns2[0].get_color())
+    ax3.spines[['right']].set_color(lns3[0].get_color())
+    ax4.spines[['right']].set_color(lns4[0].get_color())
+    ax5.spines[['right']].set_color('b')
+
+    ax2.yaxis.label.set_color(lns2[0].get_color())
+    ax3.yaxis.label.set_color(lns3[0].get_color())
+    ax4.yaxis.label.set_color(lns4[0].get_color())
+    ax5.yaxis.label.set_color('b')
+
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim((0, max(100, ymax)))
+    # Fix the range of the wind change plot
+    ax2.set_ylim((0, 180))
+    # Set the rainfall limits to be 2 or higher
+    ymin, ymax = ax5.get_ylim()
+    ax5.set_ylim((0, max(2, ymax)))
+
+
+    ax2.tick_params(axis='y', colors=lns2[0].get_color())
+    ax3.tick_params(axis='y', colors=lns3[0].get_color())
+    ax4.tick_params(axis='y', colors=lns4[0].get_color())
+    ax5.tick_params(axis='y', colors='b')
+    ax2.set_ylabel(r"Wind direction change [$^{\circ}$]")
+    ax3.set_ylabel(r"Temperature anomaly [$^{\circ}$C]")
+    ax4.set_ylabel(r"Pressure anomaly [hPa]")
+    ax5.set_ylabel(r"Rainfall [mm]")
+    ax2.grid(False)
+    ax3.grid(False)
+    ax4.grid(False)
+    ax5.grid(False)
+
+    ax.set_xlabel("Minutes")
+    ax.set_ylabel("Gust wind speed [km/h]")
+
+    ax.set_title(f"{stnName.rstrip()} ({stnNum}) {dt.strftime('%Y-%m-%d %H:%M UTC')}")
+    dtstring = dt.strftime("%Y%m%d")
+    basename = os.path.basename(filename)
+    figname = basename.replace(".txt", f".{dtstring}.png")
+    figname = os.path.join(outputDir, 'plots', figname)
+    plt.savefig(figname, bbox_inches="tight")
+    plt.close(fig)
+    return
 
 def dt(*args):
     """
