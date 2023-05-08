@@ -4,16 +4,30 @@ channels:
   - defaults
   - bioconda
 dependencies:
-  - cartopy
-  - netcdf4
-  - cfgrib
-  - pydap
-  - gitpython
-  - tendo
-  - seaborn
-  - dask
+  - rasterio
+  - pyopenssl
   - pysftp
-  - geopandas
-  - pycodestyle
+  - cryptography
+  - cartopy
   - pylint
+  - gitpython
+  - cfgrib
+  - netcdf4
+  - pint
+  - lxml
+  - tendo
+  - statsmodels
+  - seaborn
+  - jupyterlab
+  - geopandas
+  - python=3.9
+  - pydap
+  - pycodestyle
+  - imageio
+  - pandas
+  - autopep8
+  - pytables
+  - guppy3
+  - ipywidgets
+  - arm_pyart
 

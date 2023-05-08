@@ -2,3 +2,4 @@
 *.code-workspace
 .vscode/settings.json
 process/access/__pycache__/plotting.cpython-39.pyc
+.ipynb_checkpoints/
