@@ -1,3 +1,9 @@
+.. role:: bash(code)
+    :language: bash
+
+.. role:: python(code)
+    :language: python
+
 Processing and analysis scripts for Natural Hazard Impacts
 ==========================================================
 
@@ -5,7 +11,7 @@ A collection of scripts for processing and analysing various datasets used
 in the Natural Hazard Impacts section. Predominatly, these are for the
 Atmospheric Hazards team.
 
-Used in conjunction with the `nhi-pylib` codes.
+Used in conjunction with the `nhi-pylib <https://github.com/GeoscienceAustralia/nhi-pylib>`_ codes.
 
 
 Instructions
@@ -17,18 +23,18 @@ write permissions::
 
     git clone https://github.com/GeoscienceAustralia/nhi-processing bin
 
-Install the corresponding `nhi-pylib` repo::
+Install the corresponding :bash:`nhi-pylib` repo::
 
     git clone https://github.com/GeoscienceAustralia/nhi-pylib lib
 
-Add the `nhi-pylib` path to your `PYTHONPATH` environment variable::
+Add the :bash:`nhi-pylib` path to your :bash:`PYTHONPATH` environment variable::
 
     set PYTHONPATH=C:\Workspace\lib\python
 
-(I have the repos cloned to my `C:\Workspace` folder - you'll need to change
+(I have the repos cloned to my :bash:`C:/Workspace` folder - you'll need to change
 the base of the path appropriately)
 
-Create the conda environment from the `processenv.yml` file::
+Create the conda environment from the :bash:`processenv.yml` file::
 
     cd bin
     conda env create -f processenv.yml
@@ -37,12 +43,12 @@ Activate the environment::
 
     conda activate process
 
-For the scripts that use ArcGIS Pro Geoprocessing functions, there's a separate environment that you need to build (`arcgispro-py3`). By default, if a GA machine has ArcGIS Pro and Anaconda installed (via the Software Center), there will be an **arcgispro-py3** environment already available. You can use the `arcgispro-py3.yml` environment file to update the conda environment::
+For the scripts that use ArcGIS Pro Geoprocessing functions, there's a separate environment that you need to build (:bash:`arcgispro-py3`). By default, if a GA machine has ArcGIS Pro and Anaconda installed (via the Software Center), there will be an **arcgispro-py3** environment already available. You can use the :bash:`arcgispro-py3.yml` environment file to update the conda environment::
 
     conda activate arcgispro-py3
     conda env update --file arcgispro-py3.yml --prune
 
-See https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html?highlight=prune#updating-an-environment for further details on updating an environment. This may not be everything, so take care the first time using this environment. The only place it's used at present (May 2023) is in the NHIRS fetch scripts, since they write to an ESRI Geodatabase.
+See `Updating an Environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html?highlight=prune#updating-an-environment>`_ for further details on updating an environment. This may not be everything, so take care the first time using this environment. The only place it's used at present (May 2023) is in the NHIRS fetch scripts, since they write to an ESRI Geodatabase.
 
 The Windows batch scripts will activate the appropriate environment automatically when you run them.
 
