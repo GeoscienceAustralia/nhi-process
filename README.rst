@@ -40,7 +40,8 @@ Activate the environment::
 
 For the scripts that use ArcGIS Pro Geoprocessing functions, there's a separate environment that you need to build (:bash:`arcgispro-py3`). By default, if a GA machine has ArcGIS Pro and Anaconda installed (via the Software Center), there will be an **arcgispro-py3** environment already available. You can use the :bash:`arcgispro-py3.yml` environment file to update the conda environment::
 
-    conda activate arcgispro-py3
+    set CONDA_NEW_ENV=arcgispro-py3
+    CALL "C:\Program Files\ArcGIS\Pro\bin\Python\Scripts\activate.bat" "%CONDA_NEW_ENV%"
     conda env update --file arcgispro-py3.yml --prune
 
 See `Updating an Environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html?highlight=prune#updating-an-environment>`_ for further details on updating an environment. This may not be everything, so take care the first time using this environment. The only place it's used at present (May 2023) is in the NHIRS fetch scripts, since they write to an ESRI Geodatabase. If you do encounter errors, please submit an issue with the missing packages listed.
