@@ -27,12 +27,7 @@ Install the corresponding :bash:`nhi-pylib` repo::
 
     git clone https://github.com/GeoscienceAustralia/nhi-pylib lib
 
-Add the :bash:`nhi-pylib` path to your :bash:`PYTHONPATH` environment variable::
-
-    set PYTHONPATH=C:\Workspace\lib\python
-
-(I have the repos cloned to my :bash:`C:/Workspace` folder - you'll need to change
-the base of the path appropriately)
+Add the :bash:`nhi-pylib` path to your :bash:`PYTHONPATH` user environment variable. This is done by going to the Windows Settings and searching for "Edit environment variables for your account". Add or edit the :bash:`PYTHONPATH` variable to include the location of the :bash:`nhi-pylib` directory. **Make sure to append :bash:`python` to the end of the path.** If you have installed the :bash:`nhi-pylib` repo at :bash:`C:\Users\uname\nhi-pylib`, the environment variable must be set to :bash:`C:\Users\uname\nhi-pylib\python`.
 
 Create the conda environment from the :bash:`processenv.yml` file::
 
@@ -48,7 +43,7 @@ For the scripts that use ArcGIS Pro Geoprocessing functions, there's a separate 
     conda activate arcgispro-py3
     conda env update --file arcgispro-py3.yml --prune
 
-See `Updating an Environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html?highlight=prune#updating-an-environment>`_ for further details on updating an environment. This may not be everything, so take care the first time using this environment. The only place it's used at present (May 2023) is in the NHIRS fetch scripts, since they write to an ESRI Geodatabase.
+See `Updating an Environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html?highlight=prune#updating-an-environment>`_ for further details on updating an environment. This may not be everything, so take care the first time using this environment. The only place it's used at present (May 2023) is in the NHIRS fetch scripts, since they write to an ESRI Geodatabase. If you do encounter errors, please submit an issue with the missing packages listed.
 
 The Windows batch scripts will activate the appropriate environment automatically when you run them.
 
