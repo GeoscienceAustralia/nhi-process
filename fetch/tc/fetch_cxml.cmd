@@ -1,7 +1,22 @@
 @echo off
 REM Fetch CXML files from the BoM using FTP client and script
 CALL conda.bat activate process
-set PYTHONPATH=C:\WorkSpace\lib\python
-cd \incoming\que
+setlocal EnableDelayedExpansion
 
-python C:\workspace\lib\python\ftpscriptrunner.py -c c:\workspace\bin\fetch\tc\fetch_cxml.ini -v
+
+set "pathlist=%PYTHONPATH%"
+set "scriptname=ftpscriptrunner.py"
+set "args=-c %CD%\fetch_cxml.ini -v%"
+
+for %%i in ("%pathlist:;=" "%") do (
+    set "fullpath=%%~i\%scriptname%"
+    if exist "!fullpath!" (
+        echo !fullpath! exists, running script with arguments: !args!
+        python "!fullpath!" !args!
+        goto :done
+    ) else (
+        echo !fullpath! does not exist
+    )
+)
+:done
+

@@ -27,7 +27,13 @@ Install the corresponding :bash:`nhi-pylib` repo::
 
     git clone https://github.com/GeoscienceAustralia/nhi-pylib lib
 
-Add the :bash:`nhi-pylib` path to your :bash:`PYTHONPATH` user environment variable. This is done by going to the Windows Settings and searching for "Edit environment variables for your account". Add or edit the :bash:`PYTHONPATH` variable to include the location of the :bash:`nhi-pylib` directory. **Make sure to append :bash:`python` to the end of the path.** If you have installed the :bash:`nhi-pylib` repo at :bash:`C:\Users\uname\nhi-pylib`, the environment variable must be set to :bash:`C:\Users\uname\nhi-pylib\python`.
+Add the :bash:`nhi-pylib` path to your :bash:`PYTHONPATH` user environment variable. This is done by going to the Windows Settings and searching for "Edit environment variables for your account". Add or edit the :bash:`PYTHONPATH` variable to include the location of the :bash:`nhi-pylib` directory.
+
+.. important::
+
+    **Make sure to append** :bash:`python` **to the end of the path.**
+
+If you have installed the :bash:`nhi-pylib` repo at :bash:`C:\Users\uname\nhi-pylib`, the environment variable must be set to :bash:`C:\Users\uname\nhi-pylib\python`.
 
 Create the conda environment from the :bash:`processenv.yml` file::
 
