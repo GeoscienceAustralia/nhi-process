@@ -39,6 +39,8 @@ from configparser import ConfigParser, ExtendedInterpolation
 import pandas as pd
 import numpy as np
 import seaborn as sns
+from metpy.calc import wind_components
+from metpy.units import units
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -402,28 +404,39 @@ def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
                            mintempchange, dirchange, prsdrop, prsrise, emerg]
 
         if maxgust > threshold:
-            LOGGER.info(f"Extracting additional data for gust event on {datetime.strftime(idx, '%Y-%m-%d')}")
+            LOGGER.info(("Extracting additional data for gust event on "
+                         f"{datetime.strftime(idx, '%Y-%m-%d')}"))
             deltavals = df.loc[startdt : enddt].index - idx
             gustdf = df.loc[startdt : enddt].set_index(deltavals)
             pct = ((gustdf.isnull() | gustdf.isna()).sum() * 100 / gustdf.index.size)
-            qccols = ['windgust', 'temp', 'stnp', 'winddir']
+            qccols = ['windgust', 'temp', 'stnp', 'winddir', 'dewpoint']
             if np.any(pct[qccols] > 20.0):
-                LOGGER.info("Missing values found in gust, temperature, pressure or wind direction data")
+                LOGGER.info(("Missing values found in gust, temperature,"
+                             "pressure, dewpoint or wind direction data"))
                 continue
 
             gustdf['tempanom'] = gustdf['temp'] - gustdf['temp'].mean()
             gustdf['stnpanom'] = gustdf['stnp'] - gustdf['stnp'].mean()
+            gustdf['dpanom'] = gustdf['dewpoint'] - gustdf['dewpoint'].mean()
             dirchange = (gustdf.rolling('1800s')['winddir']
                                .apply(lambda x: wdir_diff(x[-1], x[0])))
             gustdf['windchange'] = dirchange
 
+            u, v, uanom, vanom = windComponents(gustdf['windspd'].values,
+                                                gustdf['winddir'].values)
+            gustdf['u'] = u
+            gustdf['v'] = v
+            gustdf['uanom'] = uanom
+            gustdf['vanom'] = vanom
             x = (gustdf.index/60/1_000_000_000)
-            newdf = gustdf[['windgust', 'temp', 'tempanom', 'windspd', 'winddir', 'windchange',
-                            'stnp', 'stnpanom', 'rainfall']]
+            newdf = gustdf[['windgust', 'temp', 'tempanom',
+                            'windspd', 'winddir', 'windchange',
+                            'u', 'v', 'uanom', 'vanom',
+                            'stnp', 'stnpanom', 'rainfall', 'rh',
+                            'dewpoint', 'dpanom']]
             newdf['tdiff'] = x.values.astype(float)
             newdf['date'] = datetime.strftime(idx, "%Y-%m-%d")
             newdf['time'] = df.loc[startdt : enddt].index.values
-            #plotEvent(newdf, idx, stnName, stnNum, outputDir, filename)
             frames.append(newdf)
 
     LOGGER.debug("Joining other observations to daily maximum wind data")
@@ -444,6 +457,28 @@ def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
         return dfmax, dfstats, eventdf
     else:
         return dfmax, dfstats, None
+
+
+def windComponents(windspd, winddir):
+    """
+    Calculate wind components and anomalies around the mean value
+
+    :param windspd: wind speed data (in units of km/h)
+    :type windspd: `pd.Series` or `np.array`
+    :param winddir: wind direction data
+    :type winddir: `pd.Series` or `np.array`
+
+    :returns: `np.array` of U and V components (east and north)
+    """
+
+    u, v = wind_components(
+        windspd * units.kph,
+        winddir * units.deg
+    )
+    uanom = u.magnitude - np.nanmean(u.magnitude)
+    vanom = v.magnitude - np.nanmean(v.magnitude)
+    return u.magnitude, v.magnitude, uanom, vanom
+
 
 def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
               stnNum: int, outputDir: str, filename: str):
