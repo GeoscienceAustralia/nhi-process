@@ -28,10 +28,6 @@ from datetime import datetime, timedelta
 from configparser import ConfigParser, ExtendedInterpolation
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import warnings
 
 from process import pAlreadyProcessed, pWriteProcessedFile, pArchiveFile, pInit
@@ -40,8 +36,6 @@ from stndata import ONEMINUTESTNNAMES, ONEMINUTEDTYPE, ONEMINUTENAMES
 
 warnings.simplefilter('ignore', RuntimeWarning)
 pd.set_option('mode.chained_assignment', None)
-sns.set_style('whitegrid')
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 LOGGER = logging.getLogger()
 PATTERN = re.compile(r".*Data_(\d{6}).*\.txt")
@@ -49,6 +43,7 @@ STNFILE = re.compile(r".*StnDet.*\.txt")
 TZ = {"QLD": 10, "NSW": 10, "VIC": 10,
       "TAS": 10, "SA": 9.5, "NT": 9.5,
       "WA": 8, "ANT": 0}
+
 
 def start():
     """
@@ -98,6 +93,20 @@ def ListAllFiles(config):
     the specification (glob) for the files, then pass to `expandFileSpecs`
 
     :param config: `ConfigParser` object
+
+    Example:
+
+    [Categories]
+    1=CategoryA
+    2=CategoryB
+
+    [CategoryA]
+    OriginDir=C:/inputpath/
+    Option2=OtherValue
+    *.csv
+    *.zip
+
+
     """
     global g_files
     g_files = {}
@@ -122,7 +131,8 @@ def expandFileSpec(config, spec, category):
 
     :param config: `ConfigParser` object
     :param str spec: A file specification. e.g. '*.*' or 'IDW27*.txt'
-    :param str category: A category that has a section in the source configuration file
+    :param str category: A category that has a section in the source
+    configuration file
     """
     if category not in g_files:
         g_files[category] = []
@@ -245,13 +255,14 @@ def processFile(filename: str, outputDir: str) -> bool:
         LOGGER.warning(f"Zero-sized file: {filename}")
         rc = False
     else:
-        basename = f"{stnNum:06d}.pkl"  # os.path.basename(filename)
+        basename = f"{stnNum:06d}.pkl"
         dfmax = extractGustRatio(filename, stnState,)
         if dfmax is None:
             LOGGER.warning(f"No data returned for {filename}")
         else:
-            LOGGER.debug(f"Writing data to {pjoin(outputDir, 'gustratio', basename)}")
-            dfmax.to_pickle(pjoin(outputDir, 'gustratio', basename))
+            outputFile = pjoin(outputDir, 'gustratio', basename)
+            LOGGER.debug(f"Writing data to {outputFile}")
+            dfmax.to_pickle(outputFile)
 
         rc = True
     return rc
