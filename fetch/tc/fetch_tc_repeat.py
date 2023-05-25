@@ -13,6 +13,7 @@ from tendo import singleton
 
 g_files = {}
 
+
 def start():
     """
     Handle command line args, start loggers, and call
@@ -23,7 +24,7 @@ def start():
 
     p.add_argument('-c', '--config_file', help="Configuration file")
     p.add_argument('-v', '--verbose',
-                   help="Verbose output", 
+                   help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -51,6 +52,7 @@ def start():
 
     mainLoop(config, verbose)
 
+
 def cnfRefreshCachedIniFile(configFile):
     global config
     LOGGER.info(f"Reloading {configFile}")
@@ -58,6 +60,7 @@ def cnfRefreshCachedIniFile(configFile):
                           interpolation=ExtendedInterpolation())
     config.optionxform = str
     config.read(configFile)
+
 
 def mainLoop(config, verbose=False):
     global LOGGER
@@ -84,6 +87,7 @@ def mainLoop(config, verbose=False):
         else:
             break
 
+
 def processFiles(config):
     global g_files
     global LOGGER
@@ -95,10 +99,9 @@ def processFiles(config):
 
     for idx, category in config.items("Categories"):
         LOGGER.info(f"Processing {category}")
-        originDir = config.get(category, "OriginDir", fallback=defaultOriginDir)
         action = config.get(category, "Action")
 
-        os.chdir(originDir)
         os.system(action)
+
 
 start()
