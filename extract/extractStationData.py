@@ -197,6 +197,7 @@ def processFiles(config):
         os.mkdir(pjoin(outputDir, 'dailymean'))
         os.mkdir(pjoin(outputDir, 'plots'))
         os.mkdir(pjoin(outputDir, 'events'))
+        os.mkdir(pjoin(outputDir, 'results'))
 
     category = "Input"
     originDir = config.get(category, 'OriginDir',
@@ -380,7 +381,7 @@ def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
         enddt = idx + timedelta(hours=1)
         maxgust = df.loc[idx]['windgust']
         wspd = df.loc[startdt : enddt]['windspd']
-        meangust = df.loc[startdt : enddt]['windspd'].mean()
+        meangust = df.loc[startdt : enddt]['windgust'].mean()
         pretemp = df.loc[startdt : idx]['temp'].mean()
         posttemp = df.loc[idx : enddt]['temp'].mean()
         tempchange = (df.loc[startdt : enddt]
