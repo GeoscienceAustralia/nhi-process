@@ -2,32 +2,31 @@ import sys
 import argparse
 from configparser import ConfigParser, ExtendedInterpolation
 from itertools import filterfalse
-from os.path import join as pjoin, isfile, dirname, basename, splitext, realpath
-from datetime import datetime, timedelta
+from os.path import join as pjoin, isfile, dirname, basename
+from datetime import datetime
 from plotting import precip
 
 from files import flStartLog, flProgramVersion, flGetStat
-from process import pWriteProcessedFile, pArchiveFile, pAlreadyProcessed, pInit
+from process import pWriteProcessedFile, pAlreadyProcessed, pInit
 from dtutils import currentCycle
 
 import xarray as xr
-import pandas as pd
-import numpy as np
 
 global LOGGER
 DATETIMEFMT = "%Y%m%d%H"
-DOMAINS = {"VT":"IDY25420",
-           "SY":"IDY25421",
-           "BN":"IDY25422",
-           "PH":"IDY25423",
-           "AD":"IDY25424",
-           "DN":"IDY25425",
-           "NQ":"IDY25426"}
+DOMAINS = {"VT": "IDY25420",
+           "SY": "IDY25421",
+           "BN": "IDY25422",
+           "PH": "IDY25423",
+           "AD": "IDY25424",
+           "DN": "IDY25425",
+           "NQ": "IDY25426"}
 
 g_files = {}
 forecast_periods = {"00-12": (0, 13),
                     "12-24": (14, 25),
                     "24-36": (26, 37)}
+
 
 def checkFileList(filelist: list) -> bool:
     """
@@ -45,7 +44,8 @@ def checkFileList(filelist: list) -> bool:
         for f in list(filterfalse(isfile, filelist)):
             LOGGER.warning(f"Missing: {f}")
         return False
-    
+
+
 def checkProcessed(filelist: list) -> bool:
     rclist = []
     for file in filelist:
@@ -58,6 +58,7 @@ def checkProcessed(filelist: list) -> bool:
     else:
         return False
 
+
 def start():
     """
     Start the process (logging, config, etc.) and call the main process
@@ -67,7 +68,7 @@ def start():
     p.add_argument('-c', '--config_file', help="Configuration file")
     p.add_argument('-a', '--archive', help="Archive file processing", action='store_true')
     p.add_argument('-v', '--verbose',
-                   help="Verbose output", 
+                   help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -137,17 +138,16 @@ def main(config):
         if 'history' in tds.attrs:
             tds.attrs['history'] = tds.attrs['history'] + provmsg
         else:
-            tds.attrs.update({"history":provmsg})
+            tds.attrs.update({"history": provmsg})
         ds = xr.Dataset({"accum_prcp": tda}, attrs=tds.attrs)
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
         ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.surface.nc4"))
-        precip(tda, rng[1]-1, 
+        precip(tda, rng[1]-1,
                pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.png"),
-               metadata={"history":provmsg})
+               metadata={"history": provmsg})
         tds.close()
         for file in filelist:
             pWriteProcessedFile(file)
-            pArchiveFile(file)
 
     LOGGER.info("Completed processing")
 
@@ -173,14 +173,14 @@ def processArchiveFile(config):
     """
     LOGGER.info(f"Processing an archive ACCESS file")
     provmsg = (f"{datetime.now():%Y-%m-%d %H:%M:%S}: {basename(sys.argv[0])}"
-               f" -c {basename(configFile)} ({flProgramVersion(dirname(sys.argv[0]))})")
-               
+               f" -c {basename(configFile)} "
+               f"({flProgramVersion(dirname(sys.argv[0]))})")
 
     LOGGER.debug(provmsg)
     provflag = False
     domain = config.get('Forecast', 'Domain')
     group = config.get('Forecast', 'Group', fallback="group2")
-    fcast_time = config.get('Forecast', 'Time') # Must be YYYYMMDDHH
+    fcast_time = config.get('Forecast', 'Time')  # Must be YYYYMMDDHH
 
     inputPath = config.get('Files', 'SourceDir')
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
@@ -197,11 +197,11 @@ def processArchiveFile(config):
     if 'history' in tds.attrs:
         tds.attrs['history'] = tds.attrs['history'] + provmsg
     else:
-        tds.attrs.update({"history":provmsg})
+        tds.attrs.update({"history": provmsg})
     if 'source' in tds.attrs:
         tds.attrs['source'] = tds.attrs['source'] + sourcemsg
     else:
-        tds.attrs.update({'source':sourcemsg})
+        tds.attrs.update({'source': sourcemsg})
 
     for fp, rng in forecast_periods.items():
         tda = tds.isel(time=slice(*rng)).wndgust10m
@@ -214,7 +214,8 @@ def processArchiveFile(config):
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
         ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.surface.nc4"))
         precip(tda, rng[1]-1,
-                 pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.png"),
-                 metadata={"history":provmsg})
+               pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.png"),
+               metadata={"history": provmsg})
+
 
 start()

@@ -29,7 +29,7 @@ forecast_periods = {"00-12": (0, 13),
 
 def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     """
-    Calculate the forecast start time based on the current datetime, 
+    Calculate the forecast start time based on the current datetime,
     how often the forecast updates (the cycle) and the delay between
     the forecast time and when it becomes available
 
@@ -48,7 +48,7 @@ def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
         fcast_time = fcast_time - timedelta(cycle/24)
         fcast_hour = (fcast_time.hour // cycle) * cycle
         fcast_time = fcast_time.replace(hour=fcast_hour, minute=0, second=0, microsecond=0)
-    else: 
+    else:
         fcast_hour = ((fcast_time.hour - delay) // cycle) * cycle
         fcast_time = fcast_time.replace(hour=fcast_hour, minute=0, second=0, microsecond=0)
     LOGGER.debug(f"Forecast time: {fcast_time}")
@@ -62,7 +62,7 @@ def checkFileList(filelist):
 
     :returns: `True` if all files exist, `False` otherwise.
     """
-    
+
     if all([isfile(f) for f in filelist]):
         LOGGER.debug("All required files exist")
         return True
@@ -80,7 +80,7 @@ def start():
     p.add_argument('-c', '--config_file', help="Configuration file")
     p.add_argument('-a', '--archive', help="Archive file processing", action='store_true')
     p.add_argument('-v', '--verbose',
-                   help="Verbose output", 
+                   help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -154,7 +154,7 @@ def main(config):
         ds = xr.Dataset({"wndgust10m": newda}, attrs=tds.attrs)
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
         ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{fp}.surface.nc4"))
-        windgust(tda, rng[1]-1, 
+        windgust(tda, rng[1]-1,
                  pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.{fp}.png"),
                  metadata={"history":provmsg})
     imglist = []
@@ -192,7 +192,7 @@ def processArchiveFile(config):
     LOGGER.info(f"Processing an archive ACCESS file")
     provmsg = (f"{datetime.now():%Y-%m-%d %H:%M:%S}: {basename(sys.argv[0])}"
                f" -c {basename(configFile)} ({flProgramVersion(dirname(sys.argv[0]))})")
-               
+
 
     LOGGER.debug(provmsg)
     provflag = False
