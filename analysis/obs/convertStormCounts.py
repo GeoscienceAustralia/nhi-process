@@ -13,19 +13,20 @@ from cartopy import crs as ccrs
 import matplotlib.pyplot as plt
 import cartopy.feature as cfeature
 
-BASEDIR = r"X:\georisk\HaRIA_B_Wind\data\derived\obs\1-minute\events"
+BASEDIR = r"X:\georisk\HaRIA_B_Wind\data\derived\obs\1-minute\events-60"
 OUTPUTPATH = pjoin(BASEDIR, "results")
 df = pd.read_pickle(pjoin(OUTPUTPATH, "stormclass.pkl"))
-allstnfile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2022\1-minute\HD01D_StationDetails.txt"
-allstndf = pd.read_csv(allstnfile, sep=',', index_col='stnNum',
-                       names=ONEMINUTESTNNAMES,
-                       keep_default_na=False,
-                       converters={
-                            'stnName': str.strip,
-                            'stnState': str.strip,
-                            'stnDataStartYear': lambda s: int(float(s.strip() or 0)),
-                            'stnDataEndYear': lambda s: int(float(s.strip() or 0))
-                        })
+allstnfile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2022\1-minute\HD01D_StationDetails.txt"  # noqa
+allstndf = pd.read_csv(
+    allstnfile, sep=',', index_col='stnNum',
+    names=ONEMINUTESTNNAMES,
+    keep_default_na=False,
+    converters={
+        'stnName': str.strip,
+        'stnState': str.strip,
+        'stnDataStartYear': lambda s: int(float(s.strip() or 0)),
+        'stnDataEndYear': lambda s: int(float(s.strip() or 0))
+    })
 
 # Assume both the start and end year have data
 allstndf['timeSpan'] = allstndf.stnDataEndYear - allstndf.stnDataStartYear + 1
@@ -49,11 +50,11 @@ pivotdf = groupdf.pivot_table(index='stnNum', columns='stormType',
                               values='count', fill_value=0)
 
 fulldf = pivotdf.join(allstndf, on='stnNum', how='left')
-fulldf['Convective'] = fulldf[['Thunderstorm', 'Front up', 'Front down']].sum(axis=1)
-fulldf['Non-convective'] = fulldf[['Synoptic storm', 'Synoptic front', 'Storm-burst']].sum(axis=1)
+fulldf['Convective'] = fulldf[['Thunderstorm', 'Front up', 'Front down']].sum(axis=1)  # noqa
+fulldf['Non-convective'] = fulldf[['Synoptic storm', 'Synoptic front', 'Storm-burst']].sum(axis=1)  # noqa
 fulldf['stormCount'] = fulldf[stormclasses].sum(axis=1)
 fulldf['ConvectiveRate'] = fulldf['Convective'].div(fulldf['timeSpan'], axis=0)
-fulldf['Non-convectiveRate'] = fulldf['Non-convective'].div(fulldf['timeSpan'], axis=0)
+fulldf['Non-convectiveRate'] = fulldf['Non-convective'].div(fulldf['timeSpan'], axis=0)  # noqa
 
 pd.options.mode.copy_on_write = True
 
@@ -73,7 +74,7 @@ propgdf = gpd.GeoDataFrame(propdf,
                                propdf.stnLon, propdf.stnLat
                                ),
                            crs='epsg:7844')
-#propgdf.to_file(pjoin(OUTPUTPATH, "propstorms.json"), driver="GeoJSON")
+# propgdf.to_file(pjoin(OUTPUTPATH, "propstorms.json"), driver="GeoJSON")
 gax = plt.axes(projection=ccrs.PlateCarree())
 gax.figure.set_size_inches(15, 12)
 propgdf.plot(column='Convective', legend=True, scheme='quantiles',

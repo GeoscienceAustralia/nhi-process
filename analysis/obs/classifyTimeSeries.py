@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 from matplotlib import patheffects
 import pandas as pd
 import numpy as np
-import seaborn as sns
 
 from sktime.classification.kernel_based import RocketClassifier
 
@@ -30,8 +29,8 @@ np.random.seed(1000)
 
 # Following can be put into command line args or config file:
 BASEDIR = r"X:\georisk\HaRIA_B_Wind\data\derived\obs\1-minute\events"
-OUTPUTPATH = pjoin(BASEDIR, "results")
-LOGGER = flStartLog(pjoin(OUTPUTPATH, "classifyTimeSeries.log"), "INFO", verbose=True)
+OUTPUTPATH = pjoin(r"X:\georisk\HaRIA_B_Wind\data\derived\obs\1-minute\events-60", "results")  # noqa
+LOGGER = flStartLog(pjoin(OUTPUTPATH, "classifyTimeSeries.log"), "INFO", verbose=True)  # noqa
 stndf = pd.read_csv(pjoin(BASEDIR, 'hqstations.csv'), index_col="stnNum")
 eventFile = pjoin(BASEDIR, "CA_20230518_Hobart.csv")
 
@@ -56,21 +55,22 @@ train_storms = stormdf.drop(test_storms.index)
 ntrain = len(train_storms)
 
 
-def loadData(stnNum: int) -> pd.DataFrame:
+def loadData(stnNum: int, datapath: str) -> pd.DataFrame:
     """
     Load event data for a given station. Missing values are interpolated
     linearly - if values are missing at the start or end they are backfilled
     from the nearest valid value.
 
     This data has been extracted by `extractStationData.py`, and is stored in
-    pickle files, so there should be no issues around type conversions.
+    pickle files, so there should be no issues around type conversions, when
+    used on the same machine.
 
     :param stnNum: BoM station number
     :type stnNum: int
     :return: DataFrame holding the data of all gust events for a station
     :rtype: `pd.DataFrame`
     """
-    fname = pjoin(BASEDIR, "events", f"{stnNum:06d}.pkl")
+    fname = pjoin(datapath, "events", f"{stnNum:06d}.pkl")
     LOGGER.debug(f"Loading event data from {fname}")
     df = pd.read_pickle(fname)
     df['date'] = pd.to_datetime(df['date'])
@@ -146,7 +146,7 @@ def plotEvent(df: pd.DataFrame, stormType: str):
     ax.set_title(stormType)
     ax.legend(lns, labs)
     plt.text(1.0, -0.05, f"Created: {datetime.now():%Y-%m-%d %H:%M %z}",
-         transform=ax.transAxes, ha='right')
+             transform=ax.transAxes, ha='right', va='top')
     plt.savefig(pjoin(OUTPUTPATH, f"{stormType}.png"), bbox_inches='tight')
 
 
@@ -156,7 +156,7 @@ def plotEvent(df: pd.DataFrame, stormType: str):
 LOGGER.info("Creating dataframe with all visually classified storm data")
 dflist = []
 for stn in stndf.index:
-    df = loadData(stn)
+    df = loadData(stn, BASEDIR)
     dflist.append(df)
 
 alldf = pd.concat(dflist)
@@ -202,7 +202,7 @@ LOGGER.info("Setting up classifier for all training events")
 rocket = RocketClassifier(num_kernels=2000)
 rocket.fit(fulltrainarray, fully)
 
-allstnfile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2022\1-minute\HD01D_StationDetails.txt"
+allstnfile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2022\1-minute\HD01D_StationDetails.txt"  # noqa
 
 allstndf = pd.read_csv(allstnfile, sep=',', index_col='stnNum',
                        names=ONEMINUTESTNNAMES,
@@ -213,9 +213,10 @@ allstndf = pd.read_csv(allstnfile, sep=',', index_col='stnNum',
                        })
 
 alldatadflist = []
+LOGGER.info("Loading all event data")
 for stn in allstndf.index:
     try:
-        df = loadData(stn)
+        df = loadData(stn, r"X:\georisk\HaRIA_B_Wind\data\derived\obs\1-minute\events-60")  # noqa
     except FileNotFoundError:
         pass  # print(f"No data for station: {stn}")
     else:
@@ -279,7 +280,8 @@ for storm in stormclasses:
 
 outputFile = pjoin(OUTPUTPATH, 'stormclass.pkl')
 LOGGER.info(f"Saving storm classification data to {outputFile}")
-outputstormdf['stnNum'], outputstormdf['date']  = zip(*outputstormdf.reset_index()['idx'])
+outputstormdf['stnNum'], outputstormdf['date'] = \
+    zip(*outputstormdf.reset_index()['idx'])
 
 outputstormdf.to_pickle(outputFile)
 LOGGER.info("Completed")
