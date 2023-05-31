@@ -124,6 +124,7 @@ def ListAllFiles(config):
                 specs.append(k)
         expandFileSpecs(config, specs, category)
 
+
 def expandFileSpec(config, spec, category):
     """
     Given a file specification and a category, list all files that match the
@@ -151,9 +152,11 @@ def expandFileSpec(config, spec, category):
             if file not in g_files[category]:
                 g_files[category].append(file)
 
+
 def expandFileSpecs(config, specs, category):
     for spec in specs:
         expandFileSpec(config, spec, category)
+
 
 def processStationFiles(config):
     """
@@ -172,6 +175,7 @@ def processStationFiles(config):
         LOGGER.info(f"Processing {f}")
         stnlist.append(getStationList(f))
     g_stations = pd.concat(stnlist)
+
 
 def processFiles(config):
     """
@@ -218,6 +222,7 @@ def processFiles(config):
                 elif deleteWhenProcessed:
                     os.unlink(f)
 
+
 def processFile(filename: str, outputDir: str) -> bool:
     """
     process a file and store output in the given output directory
@@ -240,20 +245,22 @@ def processFile(filename: str, outputDir: str) -> bool:
         LOGGER.warning(f"Zero-sized file: {filename}")
         rc = False
     else:
-        basename = f"{stnNum:06d}.pkl" # os.path.basename(filename)
+        basename = f"{stnNum:06d}.pkl"  # os.path.basename(filename)
         dfmax, dfmean, eventdf = extractDailyMax(filename, stnState, stnName,
-                                                 stnNum, outputDir)
+                                                 stnNum, outputDir,
+                                                 threshold=60)
         if dfmax is None:
             LOGGER.warning(f"No data returned for {filename}")
         else:
-            LOGGER.debug(f"Writing data to {pjoin(outputDir, 'dailymax', basename)}")
+            LOGGER.debug(f"Writing data to {pjoin(outputDir, 'dailymax', basename)}")  # noqa: E501
             dfmax.to_pickle(pjoin(outputDir, 'dailymax', basename))
             dfmean.to_pickle(pjoin(outputDir, 'dailymean', basename))
             if eventdf is not None:
-                LOGGER.debug(f"Writing data to {pjoin(outputDir, 'events', basename)}")
+                LOGGER.debug(f"Writing data to {pjoin(outputDir, 'events', basename)}")  # noqa: E501
                 eventdf.to_pickle(pjoin(outputDir, 'events', basename))
         rc = True
     return rc
+
 
 def getStationList(stnfile: str) -> pd.DataFrame:
     """
@@ -274,6 +281,7 @@ def getStationList(stnfile: str) -> pd.DataFrame:
     LOGGER.debug(f"There are {len(df)} stations")
     return df
 
+
 def wdir_diff(wd1, wd2):
     """
     Calculate change in wind direction. This always returns a positive
@@ -285,10 +293,11 @@ def wdir_diff(wd1, wd2):
     :rtype: `np.ndarray`
     """
 
-    diff1 = (wd1 - wd2)% 360
-    diff2 = (wd2 - wd1)% 360
+    diff1 = (wd1 - wd2) % 360
+    diff2 = (wd2 - wd1) % 360
     res = np.minimum(diff1, diff2)
     return res
+
 
 def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
                     variable='windgust', threshold=90.):
@@ -299,8 +308,10 @@ def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
     :param filename: str, path object or file-like object
     :param stnState: str, station State (for determining local time zone)
     :param str outputDir: Path to output directory for storing plots
-    :param str variable: the variable to extract daily maximum values - default "windgust"
-    :param float threshold: Threshold value of `variable` for additional data extraction - default 90.0
+    :param str variable: the variable to extract daily maximum values,
+        default "windgust"
+    :param float threshold: Threshold value of `variable` for additional
+        data extraction - default 90.0
 
     :returns: `pandas.DataFrame`s
 
@@ -380,36 +391,36 @@ def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
         startdt = idx - timedelta(hours=1)
         enddt = idx + timedelta(hours=1)
         maxgust = df.loc[idx]['windgust']
-        wspd = df.loc[startdt : enddt]['windspd']
-        meangust = df.loc[startdt : enddt]['windgust'].mean()
-        pretemp = df.loc[startdt : idx]['temp'].mean()
-        posttemp = df.loc[idx : enddt]['temp'].mean()
-        tempchange = (df.loc[startdt : enddt]
+        wspd = df.loc[startdt: enddt]['windspd']
+        meangust = df.loc[startdt: enddt]['windgust'].mean()
+        pretemp = df.loc[startdt: idx]['temp'].mean()
+        posttemp = df.loc[idx: enddt]['temp'].mean()
+        tempchange = (df.loc[startdt: enddt]
                       .rolling('1800s')['temp']
                       .apply(lambda x: x[-1] - x[0])
                       .agg(['min', 'max']))
         maxtempchange = tempchange['max']
         mintempchange = tempchange['min']
-        prschange = (df.loc[startdt : enddt]
+        prschange = (df.loc[startdt: enddt]
                      .rolling('1800s')['stnp']
                      .apply(lambda x: x[-1] - x[0])
                      .agg(['min', 'max']))
         prsdrop = prschange['min']
         prsrise = prschange['max']
-        dirchange = (df.loc[startdt : enddt]
+        dirchange = (df.loc[startdt: enddt]
                      .rolling('1800s')['winddir']
                      .apply(lambda x: wdir_diff(x[-1], x[0]))
                      .max())
-        emerg = maxgust / df.loc[startdt : enddt]['windgust'].nlargest(11)[1:].mean()
+        emerg = maxgust / df.loc[startdt: enddt]['windgust'].nlargest(11)[1:].mean()  # noqa: E501
         dfdata.loc[idx] = [maxgust/meangust, pretemp, posttemp, maxtempchange,
                            mintempchange, dirchange, prsdrop, prsrise, emerg]
 
         if maxgust > threshold:
             LOGGER.info(("Extracting additional data for gust event on "
                          f"{datetime.strftime(idx, '%Y-%m-%d')}"))
-            deltavals = df.loc[startdt : enddt].index - idx
-            gustdf = df.loc[startdt : enddt].set_index(deltavals)
-            pct = ((gustdf.isnull() | gustdf.isna()).sum() * 100 / gustdf.index.size)
+            deltavals = df.loc[startdt: enddt].index - idx
+            gustdf = df.loc[startdt: enddt].set_index(deltavals)
+            pct = ((gustdf.isnull() | gustdf.isna()).sum() * 100 / gustdf.index.size)  # noqa: E501
             qccols = ['windgust', 'temp', 'stnp', 'winddir', 'dewpoint']
             if np.any(pct[qccols] > 20.0):
                 LOGGER.info(("Missing values found in gust, temperature,"
@@ -437,7 +448,7 @@ def extractDailyMax(filename, stnState, stnName, stnNum, outputDir,
                             'dewpoint', 'dpanom']]
             newdf['tdiff'] = x.values.astype(float)
             newdf['date'] = datetime.strftime(idx, "%Y-%m-%d")
-            newdf['time'] = df.loc[startdt : enddt].index.values
+            newdf['time'] = df.loc[startdt: enddt].index.values
             frames.append(newdf)
 
     LOGGER.debug("Joining other observations to daily maximum wind data")
@@ -499,7 +510,7 @@ def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
     LOGGER.debug(f"Plotting data for {filename} on {dt.strftime('%Y-%m-%d')}")
     fig, ax = plt.subplots(1, 1, figsize=(8, 4))
     df.set_index('tdiff', inplace=True)
-    x = df.index # /60/1_000_000_000
+    x = df.index
     lns1 = ax.plot(x, df['windgust'], 'ko-', markerfacecolor='white',
                    label="Gust speed [km/h]")
     ax2 = ax.twinx()
@@ -508,9 +519,12 @@ def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
     ax5 = ax.twinx()
     lns2 = ax2.plot(x, df['windchange'], 'go', markersize=3,
                     markerfacecolor='w', label='Wind direction change')
-    lns3 = ax3.plot(x, df['tempanom'], 'r', label=r"Temperature anomaly [$^{o}$C]")
-    lns4 = ax4.plot(x, df['stnpanom'], 'purple', label="Pressure anomaly [hPa]")
-    lns5 = ax5.bar(x, df['rainfall'], width=0.75, label='Rainfall [mm]', color='b', alpha=0.5)
+    lns3 = ax3.plot(x, df['tempanom'], 'r',
+                    label=r"Temperature anomaly [$^{o}$C]")
+    lns4 = ax4.plot(x, df['stnpanom'], 'purple',
+                    label="Pressure anomaly [hPa]")
+    lns5 = ax5.bar(x, df['rainfall'], width=0.75,
+                   label='Rainfall [mm]', color='b', alpha=0.5)
     ax3.spines['right'].set_position(("axes", 1.1))
     ax4.spines['right'].set_position(("axes", 1.2))
     ax5.spines['right'].set_position(("axes", 1.3))
@@ -532,7 +546,6 @@ def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
     ymin, ymax = ax5.get_ylim()
     ax5.set_ylim((0, max(2, ymax)))
 
-
     ax2.tick_params(axis='y', colors=lns2[0].get_color())
     ax3.tick_params(axis='y', colors=lns3[0].get_color())
     ax4.tick_params(axis='y', colors=lns4[0].get_color())
@@ -549,7 +562,7 @@ def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
     ax.set_xlabel("Minutes")
     ax.set_ylabel("Gust wind speed [km/h]")
 
-    ax.set_title(f"{stnName.rstrip()} ({stnNum}) {dt.strftime('%Y-%m-%d %H:%M UTC')}")
+    ax.set_title(f"{stnName.rstrip()} ({stnNum}) {dt.strftime('%Y-%m-%d %H:%M UTC')}")  # noqa: E501
     dtstring = dt.strftime("%Y%m%d")
     basename = os.path.basename(filename)
     figname = basename.replace(".txt", f".{dtstring}.png")
@@ -558,10 +571,12 @@ def plotEvent(df: pd.DataFrame, dt: datetime, stnName: str,
     plt.close(fig)
     return
 
+
 def dt(*args):
     """
     Convert args to `datetime`
     """
     return datetime(*args)
+
 
 start()
