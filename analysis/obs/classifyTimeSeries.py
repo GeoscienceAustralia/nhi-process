@@ -47,7 +47,7 @@ stormdf = pd.read_csv(eventFile, usecols=[1, 2, 3], parse_dates=['date'],
 
 stormdf.set_index(['stnNum', 'date'], inplace=True)
 nevents = len(stormdf)
-LOGGER.info(f"{nevents} visually clasified storm events loaded")
+LOGGER.info(f"{nevents} visually classified storms loaded from {eventFile}")
 # To demonstrate the performance of the algorithm, we take a random selection
 # of 200 storms to test against:
 test_storms = stormdf.sample(200)
@@ -163,6 +163,7 @@ alldf = pd.concat(dflist)
 alldf['idx'] = alldf.index
 
 # Split into a preliminary training and test dataset:
+LOGGER.info("Splitting the visually classified data into test and train sets")
 eventdf_train = alldf.loc[train_storms.index]
 eventdf_test = alldf.loc[test_storms.index]
 
@@ -184,9 +185,11 @@ fulltrainarray = np.moveaxis(
     (fulltrain.values
      .reshape((len(stormdf), 121, nvars))), 1, -1)
 
+# Create array of storm types from the visually classified data:
 fully = np.array(list(
     stormdf.loc[fulltrain.reset_index()['idx'].unique()]['stormType'].values))
 
+# First start with the training set:
 LOGGER.info("Running the training set")
 rocket = RocketClassifier(num_kernels=10000)
 rocket.fit(XX, y)
@@ -196,18 +199,20 @@ results = pd.DataFrame(data={'prediction': y_pred,
 score = rocket.score(XX_test, test_storms['stormType'])
 LOGGER.info(f"Accuracy of the classifier for the training set: {score}")
 
-colorder = ['Synoptic storm', 'Synoptic front', 'Storm-burst',
-            'Thunderstorm', 'Front up', 'Front down',
-            'Spike', 'Unclassified']
-
-(pd.crosstab(results['visual'], results['prediction'])
- .reindex(colorder)[colorder]
- .to_excel(pjoin(BASEDIR, 'events', 'crosstab.xlsx')))
-
-# Now run the classifier on the full training dataset
-LOGGER.info("Setting up classifier for all training events")
+# Now run the classifier on the full event set:
+LOGGER.info("Running classifier for all visually-classified events")
 rocket = RocketClassifier(num_kernels=10000)
 rocket.fit(fulltrainarray, fully)
+newclass = rocket.predict(fulltrainarray)
+results = pd.DataFrame(data={'prediction':newclass, 'visual':fully})
+score = rocket.score(fulltrainarray, fully)
+LOGGER.info(f"Accuracy of the classifier: {score}")
+stormclasses = ['Synoptic storm', 'Synoptic front', 'Storm-burst',
+                'Thunderstorm', 'Front up', 'Front down',
+                'Spike', 'Unclassified']
+(pd.crosstab(results['visual'], results['prediction'])
+ .reindex(stormclasses)[stormclasses]
+ .to_excel(pjoin(BASEDIR, 'events', 'crosstab.xlsx')))
 
 allstnfile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2022\1-minute\HD01D_StationDetails.txt"  # noqa
 
@@ -219,8 +224,9 @@ allstndf = pd.read_csv(allstnfile, sep=',', index_col='stnNum',
                            'stnState': str.strip
                        })
 
+# Now load all events where the maximum wind gust exceeds 60 km/h
 alldatadflist = []
-LOGGER.info("Loading all event data")
+LOGGER.info("Loading all events with maximum gust > 60 km/h")
 for stn in allstndf.index:
     try:
         df = loadData(stn, r"X:\georisk\HaRIA_B_Wind\data\derived\obs\1-minute\events-60")  # noqa
@@ -274,12 +280,8 @@ outputstormdf.stormType.value_counts().to_excel(
 # Now we are going to plot the mean profile of the events:
 allXupdate['idx'] = allXupdate.index.get_level_values(0)
 
-stormclasses = ["Synoptic storm", "Synoptic front",
-                "Storm-burst", "Thunderstorm",
-                "Front up", "Front down",
-                "Spike", "Unclassified"]
-
 for storm in stormclasses:
+    LOGGER.info(f"Plotting mean profile for {storm} class events")
     stidx = outputstormdf[outputstormdf['stormType'] == storm].index
     stevents = allXupdate[allXupdate.index.get_level_values('idx').isin(stidx)]
     meanst = stevents.groupby('tdiff').mean().reset_index()
