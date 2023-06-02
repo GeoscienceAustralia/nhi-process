@@ -188,18 +188,25 @@ fully = np.array(list(
     stormdf.loc[fulltrain.reset_index()['idx'].unique()]['stormType'].values))
 
 LOGGER.info("Running the training set")
-rocket = RocketClassifier(num_kernels=2000)
+rocket = RocketClassifier(num_kernels=10000)
 rocket.fit(XX, y)
 y_pred = rocket.predict(XX_test)
 results = pd.DataFrame(data={'prediction': y_pred,
                              'visual': test_storms['stormType']})
 score = rocket.score(XX_test, test_storms['stormType'])
 LOGGER.info(f"Accuracy of the classifier for the training set: {score}")
-# pd.crosstab(results['visual'], results['prediction'])
+
+colorder = ['Synoptic storm', 'Synoptic front', 'Storm-burst',
+            'Thunderstorm', 'Front up', 'Front down',
+            'Spike', 'Unclassified']
+
+(pd.crosstab(results['visual'], results['prediction'])
+ .reindex(colorder)[colorder]
+ .to_excel(pjoin(BASEDIR, 'events', 'crosstab.xlsx')))
 
 # Now run the classifier on the full training dataset
 LOGGER.info("Setting up classifier for all training events")
-rocket = RocketClassifier(num_kernels=2000)
+rocket = RocketClassifier(num_kernels=10000)
 rocket.fit(fulltrainarray, fully)
 
 allstnfile = r"X:\georisk\HaRIA_B_Wind\data\raw\from_bom\2022\1-minute\HD01D_StationDetails.txt"  # noqa
