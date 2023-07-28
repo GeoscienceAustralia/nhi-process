@@ -9,6 +9,15 @@ and datestamp included in the filename.
 In the case that the repo has no tags, the tag name is replaced with
 'repo_content'
 
+Instructions:
+
+# Add the url of the repo to the list at the bottom of the script
+# Run the script using the commands below.
+
+Dependencies:
+
+* gitpython: https://gitpython.readthedocs.io/en/stable/index.html
+
 Usage::
 
     python backup_repos.py
