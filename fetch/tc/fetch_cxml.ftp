@@ -8,6 +8,8 @@ login
 
 cd /anon/gen/fwo
 
+ascii
+
 # CXML data:
 get IDQ65255.xml
 get IDQ65456.xml
