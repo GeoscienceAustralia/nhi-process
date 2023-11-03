@@ -13,19 +13,20 @@ import imageio.v2 as imageio
 
 global LOGGER
 DATETIMEFMT = "%Y%m%d%H"
-DOMAINS = {"VT":"IDY25420",
-           "SY":"IDY25421",
-           "BN":"IDY25422",
-           "PH":"IDY25423",
-           "AD":"IDY25424",
-           "DN":"IDY25425",
-           "NQ":"IDY25426"}
+DOMAINS = {"VT": "IDY25420",
+           "SY": "IDY25421",
+           "BN": "IDY25422",
+           "PH": "IDY25423",
+           "AD": "IDY25424",
+           "DN": "IDY25425",
+           "NQ": "IDY25426"}
 
 g_files = {}
 forecast_periods = {"00-12": (0, 13),
-                    "12-24": (14, 25),
-                    "24-36": (26, 37),
+                    "12-24": (13, 25),
+                    "24-36": (25, 37),
                     "00-36": (0, 37)}
+
 
 def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     """
@@ -54,6 +55,7 @@ def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     LOGGER.debug(f"Forecast time: {fcast_time}")
     return fcast_time
 
+
 def checkFileList(filelist):
     """
     Check that all required files exist
@@ -70,6 +72,7 @@ def checkFileList(filelist):
         for f in list(filterfalse(isfile, filelist)):
             LOGGER.warning(f"Missing: {f}")
         return False
+
 
 def start():
     """
@@ -170,6 +173,7 @@ def main(config):
 
     imageio.mimwrite(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time_str}.gif"), imglist, fps=5)
 
+
 def processArchiveFile(config):
     """
     Process an archive ACCESS-C file. Requires a modified configuration file,
@@ -233,6 +237,7 @@ def processArchiveFile(config):
         ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time}.{fp}.surface.nc4"))
         windgust(tda, rng[1]-1,
                  pjoin(outputPath, f"{DOMAINS[domain]}.APS3.wndgust10m.slv.{fcast_time}.{fp}.png"),
-                 metadata={"history":provmsg})
+                 metadata={"history": provmsg})
+
 
 start()

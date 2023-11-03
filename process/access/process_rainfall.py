@@ -24,8 +24,8 @@ DOMAINS = {"VT": "IDY25420",
 
 g_files = {}
 forecast_periods = {"00-12": (0, 13),
-                    "12-24": (14, 25),
-                    "24-36": (26, 37)}
+                    "12-24": (13, 25),
+                    "24-36": (25, 37)}
 
 
 def checkFileList(filelist: list) -> bool:
@@ -66,7 +66,8 @@ def start():
     p = argparse.ArgumentParser()
 
     p.add_argument('-c', '--config_file', help="Configuration file")
-    p.add_argument('-a', '--archive', help="Archive file processing", action='store_true')
+    p.add_argument('-a', '--archive',
+                   help="Archive file processing", action='store_true')
     p.add_argument('-v', '--verbose',
                    help="Verbose output",
                    action='store_true')
@@ -116,7 +117,8 @@ def main(config):
     group = config.get('Forecast', 'Group', fallback="group2")
     inputPath = config.get('Files', 'SourceDir')
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
-    deleteWhenProcessed = config.getboolean('Files', 'DeleteWhenProcessed', fallback=False)
+    deleteWhenProcessed = config.getboolean(
+        'Files', 'DeleteWhenProcessed', fallback=False)
 
     fcast_time = currentCycle(delay=delay)
     fcast_time_str = fcast_time.strftime(DATETIMEFMT)
@@ -124,7 +126,8 @@ def main(config):
 
     for fp, rng in forecast_periods.items():
         timelist = [f"{t:03d}" for t in range(*rng)]
-        filelist = [pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.nc4") for t in timelist]
+        filelist = [pjoin(
+            inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.nc4") for t in timelist]
         if not checkFileList(filelist):
             LOGGER.warning("Not all files exist")
             continue
@@ -141,9 +144,11 @@ def main(config):
             tds.attrs.update({"history": provmsg})
         ds = xr.Dataset({"accum_prcp": tda}, attrs=tds.attrs)
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
-        ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.surface.nc4"))
+        ds.to_netcdf(pjoin(
+            outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.surface.nc4"))
         precip(tda, rng[1]-1,
-               pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.png"),
+               pjoin(
+                   outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time_str}.{fp}.png"),
                metadata={"history": provmsg})
         tds.close()
         for file in filelist:
@@ -184,7 +189,8 @@ def processArchiveFile(config):
 
     inputPath = config.get('Files', 'SourceDir')
     outputPath = config.get('Files', 'DestDir', fallback=inputPath)
-    filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.precip.{fcast_time}.surface.nc4")
+    filename = pjoin(
+        inputPath, f"{DOMAINS[domain]}.APS3.{group}.precip.{fcast_time}.surface.nc4")
     sourcemsg = ("APS3 ACCESS Numerical Weather Prediction (NWP) Models "
                  "- Operational Reference Data Collection "
                  "https://dx.doi.org/10.25914/608a993391647")
@@ -212,9 +218,11 @@ def processArchiveFile(config):
                              dims=['lat', 'lon'], attrs=tda.attrs)
         ds = xr.Dataset({"wndgust10m": newda}, attrs=tds.attrs)
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
-        ds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.surface.nc4"))
+        ds.to_netcdf(pjoin(
+            outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.surface.nc4"))
         precip(tda, rng[1]-1,
-               pjoin(outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.png"),
+               pjoin(
+                   outputPath, f"{DOMAINS[domain]}.APS3.precip.slv.{fcast_time}.{fp}.png"),
                metadata={"history": provmsg})
 
 

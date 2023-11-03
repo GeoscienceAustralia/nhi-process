@@ -1,17 +1,14 @@
 
-import os
 import sys
 import logging
 import argparse
 from configparser import ConfigParser, ExtendedInterpolation
 from itertools import filterfalse
-from os.path import join as pjoin, isfile, dirname, basename, splitext, realpath
+from os.path import join as pjoin, isfile, dirname, basename
 from datetime import datetime, timedelta
 from files import flStartLog, flProgramVersion
 
 import xarray as xr
-import pandas as pd
-import numpy as np
 import cfgrib
 
 from plotting import helicity
@@ -19,13 +16,13 @@ from plotting import helicity
 
 global LOGGER
 DATETIMEFMT = "%Y%m%d%H"
-DOMAINS = {"VT":"IDY25420",
-           "SY":"IDY25421",
-           "BN":"IDY25422",
-           "PH":"IDY25423",
-           "AD":"IDY25424",
-           "DN":"IDY25425",
-           "NQ":"IDY25426"}
+DOMAINS = {"VT": "IDY25420",
+           "SY": "IDY25421",
+           "BN": "IDY25422",
+           "PH": "IDY25423",
+           "AD": "IDY25424",
+           "DN": "IDY25425",
+           "NQ": "IDY25426"}
 
 g_files = {}
 forecast_periods = {"00-12": (1, 13),
@@ -33,9 +30,10 @@ forecast_periods = {"00-12": (1, 13),
                     "24-36": (25, 37),
                     "00-36": (1, 37)}
 
+
 def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     """
-    Calculate the forecast start time based on the current datetime, 
+    Calculate the forecast start time based on the current datetime,
     how often the forecast updates (the cycle) and the delay between
     the forecast time and when it becomes available
 
@@ -54,11 +52,12 @@ def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
         fcast_time = fcast_time - timedelta(cycle/24)
         fcast_hour = (fcast_time.hour // cycle) * cycle
         fcast_time = fcast_time.replace(hour=fcast_hour, minute=0, second=0, microsecond=0)
-    else: 
+    else:
         fcast_hour = ((fcast_time.hour - delay) // cycle) * cycle
         fcast_time = fcast_time.replace(hour=fcast_hour, minute=0, second=0, microsecond=0)
     LOGGER.debug(f"Forecast time: {fcast_time}")
     return fcast_time
+
 
 def checkFileList(filelist):
     """
@@ -87,7 +86,7 @@ def start():
     p.add_argument('-c', '--config_file', help="Configuration file")
     p.add_argument('-a', '--archive', help="Archive file processing", action='store_true')
     p.add_argument('-v', '--verbose',
-                   help="Verbose output", 
+                   help="Verbose output",
                    action='store_true')
     args = p.parse_args()
 
@@ -163,6 +162,7 @@ def main(config):
                                 attrs=tds.attrs)
             outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.helicity.slv.{fcast_time_str}.{fp}.surface.nc4"))
 
+
 def processFiles(filelist):
     """
     Process a list of files to convert from the native grib format to netcdf,
@@ -200,5 +200,6 @@ def processFiles(filelist):
     outds = xr.concat(dslist, 'time')
 
     return outds
+
 
 start()

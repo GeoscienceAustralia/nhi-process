@@ -17,13 +17,13 @@ from plotting import radar
 
 global LOGGER
 DATETIMEFMT = "%Y%m%d%H"
-DOMAINS = {"VT":"IDY25420",
-           "SY":"IDY25421",
-           "BN":"IDY25422",
-           "PH":"IDY25423",
-           "AD":"IDY25424",
-           "DN":"IDY25425",
-           "NQ":"IDY25426"}
+DOMAINS = {"VT": "IDY25420",
+           "SY": "IDY25421",
+           "BN": "IDY25422",
+           "PH": "IDY25423",
+           "AD": "IDY25424",
+           "DN": "IDY25425",
+           "NQ": "IDY25426"}
 
 g_files = {}
 forecast_periods = {"00-12": (1, 13),
@@ -31,9 +31,10 @@ forecast_periods = {"00-12": (1, 13),
                     "24-36": (25, 37),
                     "00-36": (1, 37)}
 
+
 def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
     """
-    Calculate the forecast start time based on the current datetime, 
+    Calculate the forecast start time based on the current datetime,
     how often the forecast updates (the cycle) and the delay between
     the forecast time and when it becomes available
 
@@ -51,12 +52,15 @@ def currentCycle(now=datetime.utcnow(), cycle=6, delay=3):
         # e.g. now.hour = 01 and delay = 3
         fcast_time = fcast_time - timedelta(cycle/24)
         fcast_hour = (fcast_time.hour // cycle) * cycle
-        fcast_time = fcast_time.replace(hour=fcast_hour, minute=0, second=0, microsecond=0)
-    else: 
+        fcast_time = fcast_time.replace(
+            hour=fcast_hour, minute=0, second=0, microsecond=0)
+    else:
         fcast_hour = ((fcast_time.hour - delay) // cycle) * cycle
-        fcast_time = fcast_time.replace(hour=fcast_hour, minute=0, second=0, microsecond=0)
+        fcast_time = fcast_time.replace(
+            hour=fcast_hour, minute=0, second=0, microsecond=0)
     LOGGER.debug(f"Forecast time: {fcast_time}")
     return fcast_time
+
 
 def checkFileList(filelist):
     """
@@ -146,33 +150,40 @@ def main(config):
 
     for fp, rng in forecast_periods.items():
         timelist = [f"{t:03d}" for t in range(*rng)]
-        filelist = [pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.grb2") for t in timelist]
+        filelist = [pjoin(
+            inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.grb2") for t in timelist]
         if not checkFileList(filelist):
             LOGGER.warning("Not all files exist")
             continue
 
         tds = processFiles(filelist)
-        tds.attrs.update({"history":provmsg})
+        tds.attrs.update({"history": provmsg})
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
         radar(tds.max_radar_refl_1km, rng[1]-1,
-              pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
-              metadata={"history":provmsg})
+              pjoin(
+                  outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
+              metadata={"history": provmsg})
         outds = xr.Dataset({"radar": tds.max_radar_refl_1km.max(axis=0)},
                            attrs=tds.attrs)
-        outds.to_netcdf(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
+        outds.to_netcdf(pjoin(
+            outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
 
     imglist = []
     for fp in range(37):
         timestr = f"{fp:03d}"
         LOGGER.info(f"Processing forecast time +{timestr} hours")
-        filename = pjoin(inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{timestr}.surface.grb2")
+        filename = pjoin(
+            inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{timestr}.surface.grb2")
         tds = cfgrib.open_datasets(filename)
         max1kmds = tds[1]
-        outputfile = pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{timestr}.png")
+        outputfile = pjoin(
+            outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{timestr}.png")
         radar(max1kmds, fp, outputfile, metadata={"history": provmsg})
         imglist.append(imageio.imread(outputfile))
 
-    imageio.mimwrite(pjoin(outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.gif"), imglist, fps=5)
+    imageio.mimwrite(pjoin(
+        outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.gif"), imglist, fps=5)
+
 
 def processFiles(filelist):
     """
@@ -210,5 +221,6 @@ def processFiles(filelist):
     outds = xr.concat(dslist, 'time')
 
     return outds
+
 
 start()
