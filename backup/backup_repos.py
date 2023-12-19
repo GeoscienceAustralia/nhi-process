@@ -87,6 +87,7 @@ if __name__ == "__main__":
         "https://github.com/GeoscienceAustralia/nhi-process",
         "https://github.com/GeoscienceAustralia/nhi-pylib",
         "https://github.com/GeoscienceAustralia/hazimp",
+        "https://github.com/GeoscienceAustralia/nhi-tsed",
     ]
     for repo in repos:
         output_folder = r"X:\georisk\HaRIA_B_Wind\software"

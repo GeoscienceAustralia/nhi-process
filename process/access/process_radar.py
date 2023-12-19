@@ -151,7 +151,7 @@ def main(config):
     for fp, rng in forecast_periods.items():
         timelist = [f"{t:03d}" for t in range(*rng)]
         filelist = [pjoin(
-            inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.grb2") for t in timelist]
+            inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{t}.surface.grb2") for t in timelist]  # noqa
         if not checkFileList(filelist):
             LOGGER.warning("Not all files exist")
             continue
@@ -161,28 +161,40 @@ def main(config):
         LOGGER.info(f"Saving {DOMAINS[domain]} data for {fp} forecast period")
         radar(tds.max_radar_refl_1km, rng[1]-1,
               pjoin(
-                  outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"),
+                  outputPath,
+                  f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.png"
+                  ),
               metadata={"history": provmsg})
         outds = xr.Dataset({"radar": tds.max_radar_refl_1km.max(axis=0)},
                            attrs=tds.attrs)
         outds.to_netcdf(pjoin(
-            outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4"))
+            outputPath,
+            f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{fp}.surface.nc4")  # noqa
+                        )
 
     imglist = []
     for fp in range(37):
         timestr = f"{fp:03d}"
         LOGGER.info(f"Processing forecast time +{timestr} hours")
         filename = pjoin(
-            inputPath, f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{timestr}.surface.grb2")
+            inputPath,
+            f"{DOMAINS[domain]}.APS3.{group}.slv.{fcast_time_str}.{timestr}.surface.grb2"  # noqa
+            )
         tds = cfgrib.open_datasets(filename)
         max1kmds = tds[1]
         outputfile = pjoin(
-            outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{timestr}.png")
+            outputPath,
+            f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.{timestr}.png"
+            )
         radar(max1kmds, fp, outputfile, metadata={"history": provmsg})
         imglist.append(imageio.imread(outputfile))
 
-    imageio.mimwrite(pjoin(
-        outputPath, f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.gif"), imglist, fps=5)
+    imageio.mimwrite(
+        pjoin(
+            outputPath,
+            f"{DOMAINS[domain]}.APS3.radar.slv.{fcast_time_str}.gif"
+        ),
+        imglist, fps=5)
 
 
 def processFiles(filelist):
@@ -210,10 +222,10 @@ def processFiles(filelist):
         nds.attrs = maxcolds.attrs
 
         nds.max_maxcol_refl.attrs['long_name'] = 'max_maxcol_refl'
-        nds.max_maxcol_refl.attrs['standard_name'] = 'Maximum derived composite radar reflectivity'
+        nds.max_maxcol_refl.attrs['standard_name'] = 'Maximum derived composite radar reflectivity'  # noqa
         nds.max_maxcol_refl.attrs['units'] = 'dBZ'
         nds.max_radar_refl_1km.attrs['long_name'] = 'max_radar_refl_1km'
-        nds.max_radar_refl_1km.attrs['standard_name'] = 'Maxmium derived radar reflectivity at 1km AGL'
+        nds.max_radar_refl_1km.attrs['standard_name'] = 'Maxmium derived radar reflectivity at 1km AGL'  # noqa
         nds.max_radar_refl_1km.attrs['units'] = 'dBZ'
         dslist.append(nds)
 

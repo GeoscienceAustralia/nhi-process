@@ -3,7 +3,7 @@ import shutil
 
 source = "C:/Users/u12161/Zotero"
 dest = r"C:\Users\u12161\OneDrive - Geoscience Australia\References"
-
+#dest = r"X:\georisk\HaRIA_B_Wind\references"
 for root, dirs, files in os.walk(source):
     for name in [f for f in files if f.endswith("pdf")]:
         if not os.path.exists(os.path.join(dest, name)):
