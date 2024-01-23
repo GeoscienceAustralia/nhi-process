@@ -18,7 +18,7 @@ import sys
 import arcpy
 import logging
 import argparse
-
+import datetime
 from dtutils import currentCycle
 from configparser import ConfigParser, ExtendedInterpolation
 
@@ -91,7 +91,7 @@ def main(config):
                 outname,
                 max_features=maxfeatures
             )
-        except:
+        except Exception:
             msgs = arcpy.GetMessages()
             LOGGER.error(msgs)
         else:
@@ -110,7 +110,7 @@ def main(config):
                 arcpy.conversion.FeatureClassToFeatureClass(
                     infeatures, destination, outname
                 )
-            except:
+            except Exception:
                 msgs = arcpy.GetMessages()
                 LOGGER.error(msgs)
                 rc = 0
@@ -159,7 +159,14 @@ def start():
     )
     logLevel = config.get("Logging", "LogLevel", fallback="INFO")
     verbose = config.getboolean("Logging", "Verbose", fallback=verbose)
-    datestamp = config.getboolean("Logging", "Datestamp", fallback=False)
+    datestamp = config.getboolean("Logging", "DateStamp", fallback=False)
+    if datestamp:
+        base, ext = os.path.splitext(logFile)
+        curdate = datetime.datetime.now()
+        curdatestr = curdate.strftime("%Y%m%d%H%M")
+        # The lstrip on the extension is required as splitext leaves it on.
+        logFile = "%s.%s.%s" % (base, curdatestr, ext.lstrip("."))
+
     logging.basicConfig(
         level=getattr(logging, logLevel),
         format="%(asctime)s: %(levelname)s %(message)s",
