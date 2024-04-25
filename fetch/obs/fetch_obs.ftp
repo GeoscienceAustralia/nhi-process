@@ -1,6 +1,6 @@
 # Connect to FTP site, fetch named files and quit
 
-host ftp2.bom.gov.au
+host ftp.bom.gov.au
 connect
 user anonymous
 password hazards@ga.gov.au
