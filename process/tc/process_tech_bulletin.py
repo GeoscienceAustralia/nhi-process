@@ -20,6 +20,7 @@ g_files = {}
 g_output_path = os.getcwd()
 LOGGER = logging.getLogger()
 
+
 def start():
     """
     Handle command line args, start loggers, and call
@@ -61,6 +62,7 @@ def start():
         'Preferences', 'ArchiveTimestamp', fallback=True))
     main(config, verbose)
 
+
 def ListAllFiles(config):
     global g_files
     global LOGGER
@@ -69,19 +71,23 @@ def ListAllFiles(config):
     for idx, category in categories:
         specs = []
         items = config.items(category)
-        for k,v in items:
+        for k, v in items:
             if v == '':
                 specs.append(k)
         expandFileSpecs(config, specs, category)
 
+
 def cnfRefreshCachedIniFile(configFile):
     global config
     LOGGER.info(f"Reloading {configFile}")
-    config = ConfigParser(allow_no_value=True,
-                          interpolation=ExtendedInterpolation())
+    config = ConfigParser(
+        allow_no_value=True,
+        interpolation=ExtendedInterpolation()
+        )
     config.optionxform = str
     config.read(configFile)
     #return config
+
 
 def expandFileSpec(config, spec, category):
     """
@@ -107,9 +113,11 @@ def expandFileSpec(config, spec, category):
             if file not in g_files[category]:
                 g_files[category].append(file)
 
+
 def expandFileSpecs(config, specs, category):
     for spec in specs:
         expandFileSpec(config, spec, category)
+
 
 def main(config, verbose=False):
     logFile = config.get('Logging', 'LogFile')
@@ -120,6 +128,7 @@ def main(config, verbose=False):
 
     ListAllFiles(config)
     processFiles(config)
+
 
 def processFiles(config):
 
@@ -197,6 +206,7 @@ def processTimes(validTime, issueTime):
         validDate = issueTime.date()
     return dt.combine(validDate, validTime.time())
 
+
 def processFile(filename, outputDir):
     """
     Parse a text file to extract required data to form a track file
@@ -225,7 +235,9 @@ def processFile(filename, outputDir):
     fcast_regex = re.compile(r'^\+(\d+)')
 
     tc_info = {}
-    tc_fcast = pd.DataFrame(columns=['tau', 'datetime', 'lat', 'lon', 'pressure', 'rmax', 'poci'])
+    tc_fcast = pd.DataFrame(
+        columns=['tau', 'datetime', 'lat', 'lon', 'pressure', 'rmax', 'poci']
+        )
 
     with open(filename) as fh:
         for line in fh:
@@ -254,14 +266,14 @@ def processFile(filename, outputDir):
                 tc_info['issue_ctr'] = issue_ctr_match.group(1)
                 LOGGER.debug(tc_info['issue_ctr'])
             if issue_time_match:
-                issue_time_str = "{4}-{3}-{2} {0} {1}".format(*issue_time_match.group(1,2,3,4,5))
-                tc_info['issue_time'] = dt.strptime(issue_time_str, "%Y-%m-%d %H%M %Z")
-                LOGGER.info(f"Issue time: {tc_info['issue_time']: %Y-%m-%d %H:%M}")
+                issue_time_str = "{4}-{3}-{2} {0} {1}".format(*issue_time_match.group(1, 2, 3, 4, 5)) # noqa
+                tc_info['issue_time'] = dt.strptime(issue_time_str, "%Y-%m-%d %H%M %Z") # noqa
+                LOGGER.info(f"Issue time: {tc_info['issue_time']: %Y-%m-%d %H:%M}") # noqa
             if valid_time_match:
-                valid_time_str = "{0} {1}".format(*valid_time_match.group(1,2))
+                valid_time_str = "{0} {1}".format(*valid_time_match.group(1, 2)) # noqa
                 tc_info['valid_time'] = dt.strptime(valid_time_str, "%H%M %Z")
-                tc_info['valid_date'] = processTimes(tc_info['valid_time'], tc_info['issue_time'])
-                LOGGER.info("Valid date: {0}".format(dt.strftime(tc_info['valid_date'], "%Y-%m-%d %H:%M %Z")))
+                tc_info['valid_date'] = processTimes(tc_info['valid_time'], tc_info['issue_time']) # noqa
+                LOGGER.info("Valid date: {0}".format(dt.strftime(tc_info['valid_date'], "%Y-%m-%d %H:%M %Z"))) # noqa
             if name_match:
                 tc_info['tc_name'] = name_match.group(1)
                 LOGGER.debug(f"TC name: {tc_info['tc_name']}")
@@ -293,26 +305,31 @@ def processFile(filename, outputDir):
 
             if init_dir_match:
                 tc_info['init_dir'] = (f"{init_dir_match.group(1)} "
-                                       f"({init_dir_match.group(2)} {init_dir_match.group(3)})")
+                                       f"({init_dir_match.group(2)} "
+                                       f"{init_dir_match.group(3)})")
 
             if init_speed_match:
-                tc_info['init_speed'] = (f"{init_speed_match.group(1)} {init_speed_match.group(2)} "
-                                         f"({init_speed_match.group(3)} {init_speed_match.group(4)})")
+                tc_info['init_speed'] = (f"{init_speed_match.group(1)} "
+                                         f"{init_speed_match.group(2)} "
+                                         f"({init_speed_match.group(3)} "
+                                         f"{init_speed_match.group(4)})")
 
             if vmax_mean_match:
-                tc_info['vmax_mean'] = f"{vmax_mean_match.group(1)} {vmax_mean_match.group(2)}"
+                tc_info['vmax_mean'] = f"{vmax_mean_match.group(1)} {vmax_mean_match.group(2)}" # noqa
 
             if vmax_gust_match:
-                tc_info['vmax_gust'] = f"{vmax_gust_match.group(1)} {vmax_gust_match.group(2)}"
+                tc_info['vmax_gust'] = f"{vmax_gust_match.group(1)} {vmax_gust_match.group(2)}" # noqa
 
             if fcast_match:
                 retval = parseForecast(line)
                 if retval:
                     tau, day, hr, lat, lon, prs = retval
                     fcastdt = tc_info['valid_date'] + timedelta(hours=int(tau))
-                    tc_fcast = tc_fcast.append({'tau':tau, "datetime":fcastdt,
-                                     "lat":lat, "lon":lon, "pressure":prs,
-                                     "rmax": None, "poci":None}, ignore_index=True)
+                    tc_fcast = tc_fcast.append({
+                        'tau':tau, "datetime":fcastdt,
+                        "lat":lat, "lon":lon, "pressure":prs,
+                        "rmax": None, "poci":None},
+                        ignore_index=True)
 
     initData = [{'tau': 0, 'datetime': tc_info['valid_date'],
                  "lat": initLat, "lon": initLon, "pressure": initPrs,
@@ -321,11 +338,12 @@ def processFile(filename, outputDir):
     tc_fcast['rmax'] = rmax
     tc_fcast['poci'] = poci
 
-    filename = f"tctrack.{tc_info['tc_identifier']}.{tc_info['valid_date']:%Y%m%d%H%M}.csv"
+    filename = f"tctrack.{tc_info['tc_identifier']}.{tc_info['valid_date']:%Y%m%d%H%M}.csv" # noqa
     LOGGER.info(f"Saving track data to {filename}")
     tc_fcast.to_csv(pjoin(outputDir, filename), index=False)
     rc = writeInfoFile(tc_info, tc_fcast, outputDir)
     return True
+
 
 def writeInfoFile(tcinfo, tcfcast, outputDir):
     """
@@ -360,5 +378,6 @@ def writeInfoFile(tcinfo, tcfcast, outputDir):
 
     LOGGER.info(f"Successfully wrote TC info file to {fname}")
     return True
+
 
 start()

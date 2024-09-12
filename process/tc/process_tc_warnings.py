@@ -21,6 +21,7 @@ g_files = {}
 g_output_path = os.getcwd()
 LOGGER = logging.getLogger()
 
+
 def start():
     """
     Handle command line args, start loggers, and call
@@ -61,6 +62,7 @@ def start():
     pArchiveTimestamp(config.getboolean('Preferences', 'ArchiveTimestamp'))
     main(config, verbose)
 
+
 def ListAllFiles(config):
     global g_files
     global LOGGER
@@ -69,10 +71,11 @@ def ListAllFiles(config):
     for idx, category in categories:
         specs = []
         items = config.items(category)
-        for k,v in items:
+        for k, v in items:
             if v == '':
                 specs.append(k)
         expandFileSpecs(config, specs, category)
+
 
 def cnfRefreshCachedIniFile(configFile):
     global config
@@ -81,18 +84,23 @@ def cnfRefreshCachedIniFile(configFile):
                           interpolation=ExtendedInterpolation())
     config.optionxform = str
     config.read(configFile)
-    #return config
+    # return config
+
 
 def expandFileSpec(config, spec, category):
     """
-    Given a file specification and a category, list all files that match the spec and add them to the :dict:`g_files` dict.
-    The `category` variable corresponds to a section in the configuration file that includes an item called 'OriginDir'.
-    The given `spec` is joined to the `category`'s 'OriginDir' and all matching files are stored in a list in
-    :dict:`g_files` under the `category` key.
+    Given a file specification and a category, list all files that match the
+    spec and add them to the :dict:`g_files` dict.
+    The `category` variable corresponds to a section in the configuration file
+    that includes an item called 'OriginDir'.
+    The given `spec` is joined to the `category`'s 'OriginDir' and all
+    matching files are stored in a list in :dict:`g_files` under the
+    `category` key.
 
     :param config: `ConfigParser` object
     :param str spec: A file specification. e.g. '*.*' or 'IDW27*.txt'
-    :param str category: A category that has a section in the source configuration file
+    :param str category: A category that has a section in the source
+                         configuration file
     """
     if category not in g_files:
         g_files[category] = []
@@ -107,9 +115,11 @@ def expandFileSpec(config, spec, category):
             if file not in g_files[category]:
                 g_files[category].append(file)
 
+
 def expandFileSpecs(config, specs, category):
     for spec in specs:
         expandFileSpec(config, spec, category)
+
 
 def main(config, verbose=False):
     logFile = config.get('Logging', 'LogFile')
@@ -121,13 +131,16 @@ def main(config, verbose=False):
     ListAllFiles(config)
     processFiles(config)
 
+
 def processFiles(config):
 
     global g_files
     global LOGGER
     unknownDir = config.get('Defaults', 'UnknownDir')
     originDir = config.get('Defaults', 'OriginDir')
-    deleteWhenProcessed = config.getboolean('Files', 'DeleteWhenProcessed', fallback=False)
+    deleteWhenProcessed = config.getboolean(
+        'Files', 'DeleteWhenProcessed', fallback=False
+        )
     outputDir = config.get('Output', 'Path', fallback=unknownDir)
     LOGGER.debug(f"Origin directory: {originDir}")
     LOGGER.debug(f"DeleteWhenProcessed: {deleteWhenProcessed}")
@@ -156,22 +169,28 @@ def processFiles(config):
                 else:
                     pArchiveFile(f)
 
+
 def processTimes(validTime, issueTime):
     """
     Calculate the actual valid time, if the issue time is recently after 00 UTC
-    For example, if the issue time is 00:30 UTC, and the valid time is something like
-    22:00 UTC, then we need to set the valid date back one day relative to the issue date.
+    For example, if the issue time is 00:30 UTC, and the valid time is
+    something like 22:00 UTC, then we need to set the valid date back one day
+    relative to the issue date.
 
-    :param validTime: a :class:`datetime.time` instance that represents the time the data in the bulletin refers to
-    :param issueTime: a :class:`datetime.datetime` instance that represents when the bulletin was issued
+    :param validTime: a :class:`datetime.time` instance that represents the
+                      time the data in the bulletin refers to
+    :param issueTime: a :class:`datetime.datetime` instance that represents
+                      when the bulletin was issued
 
-    :returns: a new :class:`datetime.datetime` instance for the valid time of the bulletin
+    :returns: a new :class:`datetime.datetime` instance for the valid time
+              of the bulletin
     """
-    if issueTime.hour == 0 & validTime.hour >=22:
+    if issueTime.hour == 0 & validTime.hour >= 22:
         validDate = issueTime.date() - timedelta(days=1)
     else:
         validDate = issueTime.date()
     return dt.combine(validDate, validTime.time())
+
 
 def processFile(filename, outputDir):
     """
@@ -187,5 +206,6 @@ def processFile(filename, outputDir):
     zz = zipfile.ZipFile(filename)
     zz.extractall(path=outputDir)
     return True
+
 
 start()
